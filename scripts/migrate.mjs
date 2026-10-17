@@ -7,6 +7,12 @@ import { migrate } from "drizzle-orm/postgres-js/migrator";
 
 const url = process.env.DATABASE_URL;
 
+// Escape hatch for pipelines that migrate elsewhere, or to bring a deploy up while a database is being wired.
+if (process.env.SKIP_DB_MIGRATE === "1") {
+  console.warn("⚠ SKIP_DB_MIGRATE=1 — skipping database migrations. Make sure the schema is up to date.");
+  process.exit(0);
+}
+
 if (!url) {
   if (process.env.VERCEL) {
     console.error(

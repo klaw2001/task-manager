@@ -1,6 +1,6 @@
-import { timingSafeEqual } from "node:crypto";
 import { and, inArray, isNotNull, isNull, lt, ne } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { hasCronSecret } from "@/lib/auth/bearer";
 import { getDb, tasks } from "@/lib/db";
 import { getCompany } from "@/lib/data/company";
 import { notify } from "@/lib/data/notifications";
@@ -8,23 +8,13 @@ import { formatYmd, todayIn } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
-function authorized(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const given = req.headers.get("authorization") ?? "";
-  const expected = `Bearer ${secret}`;
-  const a = Buffer.from(given);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
 /**
  * Daily job (see vercel.json). Tells assignees — and whoever created the task —
  * once when a task slips past its deadline. Idempotent: each task is announced
  * at most once until its due date changes or it's reopened.
  */
 export async function GET(req: Request) {
-  if (!authorized(req)) return new NextResponse("Unauthorized", { status: 401 });
+  if (!hasCronSecret(req)) return new NextResponse("Unauthorized", { status: 401 });
 
   const company = await getCompany();
   if (!company) return NextResponse.json({ ok: true, notified: 0 });
