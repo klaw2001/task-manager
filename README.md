@@ -54,7 +54,8 @@ Every rule is enforced **on the server** (`src/lib/permissions.ts` + each action
 
    | Name | Required | Purpose |
    | --- | :-: | --- |
-   | `DATABASE_URL` | ✅ | Postgres connection string |
+   | `DATABASE_URL` | ✅ | Postgres connection string (pooled — see Supabase note below) |
+   | `MIGRATION_DATABASE_URL` | optional | Direct/session connection used only for build-time migrations; falls back to `DATABASE_URL` |
    | `AUTH_SECRET` | ✅ | Signs session cookies. Generate with `openssl rand -base64 48` |
    | `SETUP_KEY` | recommended | If set, `/setup` asks for it – stops a stranger claiming a freshly deployed instance before you do |
    | `CRON_SECRET` | for digests | Vercel sends it as a bearer token to `/api/cron/overdue`; without it the endpoint returns 401 |
@@ -62,6 +63,10 @@ Every rule is enforced **on the server** (`src/lib/permissions.ts` + each action
 4. **Deploy.** The build runs `node scripts/migrate.mjs` first, so the schema is created/updated automatically on every deploy (and the build fails loudly if `DATABASE_URL` is missing).
 5. Open your URL → **/setup** → create the company and your admin account. Add teammates from **People & roles**.
 
+> **Supabase:** use the **pooler** connection string (*Dashboard → Connect → Transaction pooler*, host `aws-0-<region>.pooler.supabase.com`, port `6543`, user `postgres.<project-ref>`) and append `?sslmode=require`. The *Direct connection* host (`db.<ref>.supabase.co`) is IPv6-only and Vercel can't reach it — builds fail fast and `/api/health` reports `ENOTFOUND`. For migrations you can set `MIGRATION_DATABASE_URL` to the **Session pooler** (port `5432`). Migration `0001` turns on Row Level Security (no policies) for every table so Supabase's public REST API can't expose app data; the app connects as the table owner, which bypasses RLS.
+>
+> **Troubleshooting:** `GET /api/health` returns `{"ok":true}` when the database is reachable. Send `Authorization: Bearer $CRON_SECRET` to also get the failing error code and whether the DB host resolves over IPv4/IPv6. `SKIP_DB_MIGRATE=1` skips build-time migrations (use sparingly).
+>
 > **Previews:** preview deployments use the same env vars by default. Scope `DATABASE_URL` to *Production* and give previews their own database (e.g. a Neon branch) so test data and migrations never touch production.
 >
 > **Cron:** `vercel.json` schedules `/api/cron/overdue` daily at 06:00 UTC (fits the Hobby plan limit of one run per day).
