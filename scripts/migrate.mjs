@@ -5,7 +5,8 @@ import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 
-const url = process.env.DATABASE_URL;
+// MIGRATION_DATABASE_URL (optional) lets migrations use a direct/session connection while the app uses a pooled one.
+const url = process.env.MIGRATION_DATABASE_URL || process.env.DATABASE_URL;
 
 // Escape hatch for pipelines that migrate elsewhere, or to bring a deploy up while a database is being wired.
 if (process.env.SKIP_DB_MIGRATE === "1") {

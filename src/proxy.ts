@@ -22,5 +22,5 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // Skip static assets, Next internals, and the cron/health endpoints (they do their own bearer-token auth).
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/(?:cron|health)|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/(?:cron|health|diag)|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };
