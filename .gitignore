@@ -1,11 +1,8 @@
 node_modules
-.next
-out
-.data
+dist
 .env
-.env.*.local
-.env.local
-*.tsbuildinfo
-next-env.d.ts
-.vercel
-npm-debug.log*
+uploads
+*.log
+.DS_Store
+server/public
+.test-uploads

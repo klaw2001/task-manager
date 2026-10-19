@@ -1,0 +1,10 @@
+{
+  "name": "Staff Training",
+  "short_name": "Training",
+  "description": "Staff training and recipe library",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f5f3",
+  "theme_color": "#b4231f",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

@@ -1,0 +1,11 @@
+# Local development database only:  docker compose up -d db
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: lms
+    ports: ["5432:5432"]
+    volumes: [lms-db:/var/lib/postgresql/data]
+volumes:
+  lms-db:

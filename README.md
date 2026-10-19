@@ -1,127 +1,78 @@
-# Task Manager
+# Staff Training & Recipe LMS
 
-A calm, Notion-style task manager for small teams. The founder/admin sets up the company, adds people and roles, and assigns work. Everyone else gets a clean dashboard where **overdue work is always the first thing they see**.
+A small, mobile-first learning system for **Indoventura Foodteck**: staff watch assigned training videos, take assessments, acknowledge SOPs and look up recipes. Admins manage everything in the app — no developer needed for routine changes.
 
-Built with **Next.js 16 (App Router) · React 19 · Tailwind v4 · Drizzle ORM · PostgreSQL**. Deploys to Vercel with no code changes.
+**Stack:** React 19 + Vite · Node 22 + Express 5 · PostgreSQL · S3 for videos · one Docker image · built for AWS ([guide](docs/AWS.md)).
 
-![Dashboard](docs/screenshots/dashboard.png)
-
-| Task side-peek | Board |
-| --- | --- |
-| ![Task side-peek](docs/screenshots/task-peek.png) | ![Board](docs/screenshots/board.png) |
-
-## What you get
-
-**For the admin / founder**
-- **Company profile** – name, tagline, about, logo, website, industry, size, founded year, timezone, brand colour (recolours the whole app) and a task-visibility policy.
-- **People & roles** – add team members (auto-generated temporary password, shown once), change roles, assign teams, reset passwords, deactivate/reactivate (live sessions are killed immediately). The last active admin can never be demoted or deactivated.
-- **Teams** – group people (Engineering, Design, …).
-- **Assign tasks** to anyone; see **company-wide overdue work grouped by person**, per-person workload, blocked work, completion trend and a live activity feed.
-
-**For the team**
-- A Notion-like workspace: **List** (grouped *Overdue → Due today → Upcoming → No deadline → Completed*) and **Board** (drag cards between status columns).
-- **Side-peek panel** for each task: status, assignee, deadline, priority, tags, description, **comments** and full change history – all editable inline.
-- **Overdue first, everywhere** – the dashboard opens with an Overdue panel, the Tasks page sorts and groups overdue first and shows a banner, and the sidebar carries a live overdue badge. Founders see the same, company-wide.
-- Filters and search that live in the URL (shareable), in-app **notifications** (assigned, commented, status changed, overdue), dark mode, keyboard shortcut `c` for a new task, mobile-friendly layout.
-
-### Roles
-
-| | Admin | Manager | Member |
-| --- | :-: | :-: | :-: |
-| Company profile, people, roles, teams | ✅ | – | – |
-| Create tasks & assign to others | ✅ | ✅ | – (own tasks only) |
-| Edit / delete any task | ✅ | ✅ | only tasks they created |
-| Change status | any task | any task | tasks assigned to them |
-| See all tasks | ✅ | ✅ | per company setting (all, or only theirs) |
-| Comment | ✅ | ✅ | on tasks they can see |
-| Team workload view | ✅ | ✅ | – |
-
-Every rule is enforced **on the server** (`src/lib/permissions.ts` + each action) – hiding a button is never the only protection.
-
-### Extra ideas included beyond the brief
-- **Overdue banner + badge + daily digest** – a Vercel Cron job notifies the assignee (and creator) once when a task slips past its deadline.
-- **Member task visibility policy** (transparent vs. need-to-know) as a company setting.
-- **Claim an unassigned task** with one click; members can add personal tasks.
-- **Forced password change** on first sign-in; password change signs out other devices.
-- **Sample data option** on first-run setup so you can explore immediately.
-- Brand-colour theming, 14-day completion chart, workload bars, activity feed.
-
-## Deploy to Vercel
-
-1. **Import the repo** at [vercel.com/new](https://vercel.com/new). The framework (Next.js) is auto-detected.
-2. **Add a Postgres database**: *Storage → Create → Neon* (or Supabase / any Postgres) and connect it to the project. Make sure a **`DATABASE_URL`** environment variable exists (use the *pooled* connection string if your provider has both).
-3. **Add environment variables** (Project → Settings → Environment Variables):
-
-   | Name | Required | Purpose |
-   | --- | :-: | --- |
-   | `DATABASE_URL` | ✅ | Postgres connection string (pooled — see Supabase note below) |
-   | `MIGRATION_DATABASE_URL` | optional | Direct/session connection used only for build-time migrations; falls back to `DATABASE_URL` |
-   | `AUTH_SECRET` | ✅ | Signs session cookies. Generate with `openssl rand -base64 48` |
-   | `SETUP_KEY` | recommended | If set, `/setup` asks for it – stops a stranger claiming a freshly deployed instance before you do |
-   | `CRON_SECRET` | for digests | Vercel sends it as a bearer token to `/api/cron/overdue`; without it the endpoint returns 401 |
-
-4. **Deploy.** The build runs `node scripts/migrate.mjs` first, so the schema is created/updated automatically on every deploy (and the build fails loudly if `DATABASE_URL` is missing).
-5. Open your URL → **/setup** → create the company and your admin account. Add teammates from **People & roles**.
-
-> **Supabase:** use the **pooler** connection string (*Dashboard → Connect → Transaction pooler*, host `aws-0-<region>.pooler.supabase.com`, port `6543`, user `postgres.<project-ref>`) and append `?sslmode=require`. The *Direct connection* host (`db.<ref>.supabase.co`) is IPv6-only and Vercel can't reach it — builds fail fast and `/api/health` reports `ENOTFOUND`. For migrations you can set `MIGRATION_DATABASE_URL` to the **Session pooler** (port `5432`). Migration `0001` turns on Row Level Security (no policies) for every table so Supabase's public REST API can't expose app data; the app connects as the table owner, which bypasses RLS.
->
-> **Troubleshooting:** `GET /api/health` returns `{"ok":true}` when the database is reachable. Send `Authorization: Bearer $CRON_SECRET` to also get the failing error code and whether the DB host resolves over IPv4/IPv6. `SKIP_DB_MIGRATE=1` skips build-time migrations (use sparingly).
->
-> **Previews:** preview deployments use the same env vars by default. Scope `DATABASE_URL` to *Production* and give previews their own database (e.g. a Neon branch) so test data and migrations never touch production.
->
-> **Cron:** `vercel.json` schedules `/api/cron/overdue` daily at 06:00 UTC (fits the Hobby plan limit of one run per day).
-
-## Run locally
+## Run it locally
 
 ```bash
+cp .env.example .env
+docker compose up -d db        # PostgreSQL (or point DATABASE_URL at any Postgres)
 npm install
-npm run dev          # http://localhost:3000 → redirects to /setup
+npm run seed                   # demo brands, outlets, users, modules, recipes (never run in production)
+npm run dev                    # API on :3000, web app on http://localhost:5173
 ```
 
-No database setup needed: with no `DATABASE_URL`, development uses an embedded Postgres ([PGlite](https://pglite.dev)) stored in `./.data`. Want demo content?
+Demo sign-ins (employee ID, password `Demo@1234`):
+
+| ID | Role | Notes |
+|---|---|---|
+| `ADMIN001` | Super Admin | everything |
+| `TRAIN001` | Training Admin | modules, recipes, assignments, reports — not users |
+| `INC001` / `INC002` | Outlet In-charge | own training + their outlet's team (Andheri / Bandra) |
+| `FR001` | Franchisee | own training + outlets they own (Bandra) |
+| `TM001` | Team Member | Andheri, **shift 09:00–18:00** — content locks outside it |
+| `TM002`–`TM004` | Team Member | no shift limit (`TM004` is a different brand) |
+
+Admin users in the app: **Users** (add, edit, transfer, remove access), **Outlets**, **Modules**, **Recipes**, **Reports**, **Audit**.
+
+## The three rules you asked for
+
+**1. Content only during the shift.** Each user can have a shift start/end (India time by default, `APP_TIMEZONE`; overnight shifts like 22:00–06:00 work; the end minute is exclusive). Outside it, every training, recipe and video endpoint returns `403 OUTSIDE_SHIFT` and the app shows a "Outside your shift" screen. It's enforced on the server for each request, so a video that is already playing stops at the next chunk (≤ ~2 MB) when the shift ends. Leave the shift blank for no restriction; admins are never restricted. Manager reports are not shift-locked (they are not training content).
+
+**2. No downloading, no screenshots — what is and isn't possible.**
+* *Downloads:* videos have **no public URL**; they are streamed by the app only to a signed-in, in-shift, assigned user, in short range responses with `Cache-Control: no-store`. The player hides the download button, Picture-in-Picture and the right-click menu. This stops casual saving; it can't stop someone determined who scripts requests with their own login.
+* *Screenshots / screen recording:* **a website cannot block these** — not on iPhone, not on Android, not on desktop. Anything claiming otherwise is misleading. What the app does instead is overlay the viewer's **name and employee ID**, drifting across the video, so a leaked recording or screenshot points back to the person. If you need the operating system to blank the screen (Android `FLAG_SECURE`, iOS screen-capture detection), the app would need wrapping as a native app (e.g. Capacitor); say if you want that.
+
+**3. Admins can remove anyone's access at any time.** **Users → Remove access** signs the person out and blocks sign-in, playback and every API call *immediately* (the account is checked on every request, there is no token to wait out). Their training records stay. **Restore access** reverses it. Removals, resets and transfers are in the audit log.
+
+## How the brief is covered
+
+| Brief | Where |
+|---|---|
+| Roles + brand/outlet restriction | Server-side on every route (`progress-query.js` `teamScope`, `routes/*`). In-charges see their outlet; franchisees see outlets they own; learners see only their brand/role content |
+| Onboarding, transfers, deactivation | **Users** page: name, employee ID, mobile, brand/outlet, designation, manager, joining date, language, shift, deadline. Temporary password shown once, forced change at first sign-in |
+| Modules: video, instructions, brands/roles, mandatory/optional, sequence + prerequisite, deadline, assessment, acknowledgement | **Modules → editor** |
+| Resume video, lesson ≠ assessment, minimum viewing | Position saved every 10 s; viewing time is *measured* (a heartbeat capped by real elapsed time), so seeking to the end earns nothing |
+| MCQ / multi-answer / optional written; pass mark, attempts, randomisation | Auto-marked server-side; the answer key is never sent to the browser |
+| Failed + retraining, score/attempts/date | Statuses *Failed*, *Retraining required*; admin **Allow retake**; full per-person history |
+| Complete only after lesson + assessment + acknowledgement | Enforced in `routes/learn.js` (`settle`) |
+| Recipe library, search, brand/role restriction | **Recipes** — search by name, category or ingredient; replay without assessments |
+| Publish/archive, preview, assign to people/groups | Module editor (Preview, Assign tabs) |
+| Versions + change history, retrain / re-acknowledge | **Publish new version** (retrain, or fresh acknowledgement only). Progress and attempts are stored per version, so earlier completions stay linked to the version completed |
+| Dashboards + reports | Learner dashboard; **Reports** by record / employee / outlet / brand / role, overdue and failed, **CSV download** (opens in Excel) |
+| Secure login, session expiry, audit | bcrypt, httpOnly cookie, 8 h sessions, failed-login limits, audit log, protected media |
+| Company-controlled hosting + source | Your AWS account, this repository |
+
+**Not in this version** (listed so nothing is assumed): email/SMS/push **reminders** (the dashboard and reports show due/overdue); **OTP / self-service password recovery** (an admin resets the password); real **.xlsx** export (CSV only); PDF/image **attachments** on modules (video + text only; recipes have a plating image); **recipe version history** (edits are in the audit log); **adaptive HLS streaming / CloudFront** (see [docs/AWS.md](docs/AWS.md) §5); multi-language **UI** (content has a language field; the interface is English).
+
+## Layout
+
+```
+server/   Express API  (src/routes/*, src/storage.js, migrations/*.sql, scripts/, test/)
+client/   React app    (src/pages/*, src/SecureVideo.jsx, src/ShiftGate.jsx)
+docs/AWS.md   deployment guide        Dockerfile   one image for API + web
+```
+
+## Tests
 
 ```bash
-npm run db:reset && npm run db:seed   # stop `next dev` first
-# founder@example.com / demo1234  (admin) · maya@ (manager) · jordan@ sam@ priya@ (members)
+createdb lms_test
+TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/lms_test npm test
 ```
+⚠ The test database is **wiped on every run** (the name must end in `_test`). The 19 tests cover shift locking, instant access removal, protected range streaming, tamper-resistant progress, the learner journey, attempt limits, versioning with preserved history, outlet/brand scoping, CSV, audit and first-boot setup.
 
-To develop against a real Postgres instead, copy `.env.example` to `.env.local` and set `DATABASE_URL`, then `npm run db:migrate`.
+## Configuration
 
-| Script | |
-| --- | --- |
-| `npm run dev` / `build` / `start` | Next.js |
-| `npm test` | Unit tests (overdue/timezone logic, permission matrix) |
-| `npm run typecheck` / `lint` | TypeScript / ESLint |
-| `npm run db:generate` | Create a SQL migration after editing `src/lib/db/schema.ts` |
-| `npm run db:migrate` | Apply migrations to `DATABASE_URL` |
-
-## How it's put together
-
-```
-src/
-  app/                    routes — (auth) login/setup/change-password · (app) dashboard, tasks, team, settings, admin/*
-  app/api/cron/overdue    daily overdue notifier
-  components/             ui primitives · layout · tasks (table, board, peek) · admin
-  lib/db/                 Drizzle schema, DB client (Postgres | PGlite), sample data
-  lib/data/               read queries (visibility + "overdue first" ordering live here)
-  lib/actions/            server actions: validate (zod) → authorise → write → revalidate
-  lib/permissions.ts      the role/permission rules (pure, unit-tested)
-  lib/dates.ts            deadline & timezone logic (pure, unit-tested)
-  proxy.ts                redirects signed-out visitors (Next 16's replacement for middleware)
-drizzle/                  generated SQL migrations (committed)
-```
-
-Design decisions worth knowing:
-
-- **Deadlines are calendar dates** (`YYYY-MM-DD`) interpreted in the *company timezone*, so "overdue" flips at local midnight for everyone and string comparison is always correct. Set the timezone in **Company profile**.
-- **Auth** is custom and small: bcrypt password hashes, a signed JWT in an `httpOnly`, `SameSite=Lax`, `Secure` cookie, **re-validated against the database on every request** (so deactivation and password resets take effect instantly). Accounts lock for 15 minutes after 5 failed attempts. Open redirects after login are blocked.
-- **Single tenant**: one company per deployment. Deploy a second project for a second company.
-- **Serverless-friendly DB access**: `postgres.js` with `prepare: false` and one connection per instance, safe behind Neon/Supabase poolers.
-- Security headers are set in `next.config.ts`. There is deliberately no CSP yet (it needs nonce plumbing for Next's inline scripts).
-
-## Known limits / next steps
-
-- **No email**: new users get a temporary password you hand over (shown once). Adding invitation / reset emails (e.g. Resend) is the natural next step.
-- No file attachments, subtasks, recurring tasks or @mentions yet.
-- Drag-and-drop on the board is mouse/pen only; on touch devices and for keyboard users, change status from the task panel or the status pill.
-- Sessions last 7 days; there is no "remember me" / SSO.
+See [.env.example](.env.example). Production needs `JWT_SECRET`; `STORAGE_DRIVER=s3` + `S3_BUCKET` for videos; `DATABASE_SSL=true` for RDS.
