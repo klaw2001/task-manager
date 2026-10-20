@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api.js';
+import Attachments from '../Attachments.jsx';
 import SecureVideo from '../SecureVideo.jsx';
 import ShiftGate from '../ShiftGate.jsx';
 import { Badge, Card, Loading, Page, useLoad } from '../ui.jsx';
@@ -61,7 +62,7 @@ function Detail() {
     <Page title={r.name} subtitle={`${r.category}${r.brand_name ? ` · ${r.brand_name}` : ''}`}>
       <p className="small"><Link to="/recipes">← All recipes</Link></p>
       <div className="stack">
-        {r.has_video && <SecureVideo src={`/api/media/recipes/${id}/video`} />}
+        {r.has_video && <SecureVideo source={{ type: 'recipe', id }} />}
         <div className="row">
           {r.portion_size && <Badge tone="blue">Portion: {r.portion_size}</Badge>}
           {r.yield && <Badge tone="blue">Yield: {r.yield}</Badge>}
@@ -80,6 +81,7 @@ function Detail() {
         <Section title="Food safety">{r.food_safety}</Section>
         <Section title="Common mistakes">{r.common_mistakes}</Section>
         <Section title="Quality checkpoints">{r.quality_checkpoints}</Section>
+        <Attachments items={r.attachments} />
       </div>
     </Page>
   );

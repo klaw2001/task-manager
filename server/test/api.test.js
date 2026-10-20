@@ -1,6 +1,5 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import { client, setup, windowAround } from './helpers.js';
 
@@ -158,76 +157,34 @@ test('new version: retrain keeps the old completion on record; reack only needs 
   assert.equal(history.filter((h) => h.completed_at).length, 3);
 });
 
-test('video: upload, protected streaming in short ranges, tamper-proof progress, and immediate revocation', async () => {
+test('onboarding: a new user gets their training path, must change the temporary password, and a publish is audited', async () => {
   const admin = await as('ADMIN001');
-  const bytes = randomBytes(1024 * 1024);
-
-  const slot = (await admin.post('/api/admin/uploads', { kind: 'video', filename: 'plating demo.mp4', contentType: 'video/mp4' })).data;
-  assert.match(slot.key, /^videos\/[0-9a-f-]{36}\/plating_demo\.mp4$/);
-  assert.equal((await admin.put(slot.url, bytes, { 'Content-Type': 'video/mp4' })).status, 200);
-  assert.equal((await admin.post('/api/admin/uploads', { kind: 'video', filename: 'x.exe', contentType: 'application/x-msdownload' })).status, 400);
-  // %2f survives URL normalisation, so the server really receives ../../etc/passwd as the key
-  assert.equal((await admin.put('/api/admin/uploads/local/videos/00000000-0000-0000-0000-000000000000/..%2f..%2f..%2fetc%2fpasswd', bytes, { 'Content-Type': 'video/mp4' })).status, 400);
-
-  // onboarding a new user: temporary password must be changed before anything else works
   const outlet = await ctx.db.one(`SELECT id FROM outlets WHERE name='Andheri'`);
-  const created = await admin.post('/api/admin/users', { employeeId: 'TM900', name: '=HYPERLINK("http://evil")', role: 'team_member', outletId: outlet.id, shiftStart: null, shiftEnd: null });
+  const created = await admin.post('/api/admin/users', { employeeId: 'TM900', name: '=HYPERLINK("http://evil")', role: 'team_member', outletId: outlet.id });
   assert.equal(created.status, 201);
   assert.ok(created.data.assigned >= 2, 'training path is assigned automatically');
+  assert.equal(created.data.emailed, null, 'no email address was given, so nothing is sent');
+
   const nu = client(ctx.baseUrl);
-  const first = await nu.post('/api/auth/login', { employeeId: 'TM900', password: created.data.temporaryPassword });
-  assert.equal(first.status, 200);
+  assert.equal((await nu.post('/api/auth/login', { employeeId: 'TM900', password: created.data.temporaryPassword })).status, 200);
   assert.equal((await nu.get('/api/learn/modules')).error.code, 'PASSWORD_CHANGE_REQUIRED');
   assert.equal((await nu.post('/api/auth/change-password', { currentPassword: created.data.temporaryPassword, newPassword: 'short' })).status, 400);
   assert.equal((await nu.post('/api/auth/change-password', { currentPassword: created.data.temporaryPassword, newPassword: 'Fresh-pass-42' })).status, 200);
   assert.equal((await nu.get('/api/learn/modules')).status, 200);
 
-  const mod = (await admin.post('/api/admin/modules', { title: 'Plating Demo', roles: ['team_member'], videoKey: slot.key, durationSeconds: 100, minWatchPercent: 90, instructions: 'Watch the demo' })).data;
-  assert.equal((await admin.post(`/api/admin/modules/${mod.id}/assign`, { userIds: [await idOf('TM900')] })).status, 400, 'cannot assign before publishing');
+  // a text-only module can be published without any video
+  const mod = (await admin.post('/api/admin/modules', { title: 'Opening Checklist', roles: ['team_member'], instructions: 'Unlock, lights, fridge temps.' })).data;
+  assert.equal((await admin.post(`/api/admin/modules/${mod.id}/assign`, { userIds: [1] })).status, 400, 'cannot assign before publishing');
   assert.equal((await admin.post(`/api/admin/modules/${mod.id}/publish`)).status, 200);
-  const assignRes = await admin.post(`/api/admin/modules/${mod.id}/assign`, { role: 'team_member', outletId: outlet.id });
-  assert.ok(assignRes.data.assigned >= 3);
 
-  // streaming
-  const range = await nu.get(`/api/media/modules/${mod.id}/video`, { Range: 'bytes=0-' });
-  assert.equal(range.status, 206);
-  assert.equal(range.headers.get('content-range'), `bytes 0-${256 * 1024 - 1}/${bytes.length}`, 'each response is capped so access is re-checked often');
-  assert.equal(range.data.length, 256 * 1024);
-  assert.ok(range.data.equals(bytes.subarray(0, 256 * 1024)));
-  assert.match(range.headers.get('cache-control'), /no-store/);
-  assert.match(range.headers.get('content-disposition'), /^inline/);
-  assert.equal((await nu.get(`/api/media/modules/${mod.id}/video`)).status, 206, 'no Range header still gets only the first chunk');
-  const mid = await nu.get(`/api/media/modules/${mod.id}/video`, { Range: 'bytes=500000-600000' });
-  assert.ok(mid.data.equals(bytes.subarray(500000, 600001)));
-  assert.equal((await nu.get(`/api/media/modules/${mod.id}/video`, { Range: 'bytes=99999999-' })).status, 416);
-
-  // a user who is not assigned / not eligible gets nothing
-  const other = await as('TM004');
-  assert.equal((await other.get(`/api/media/modules/${mod.id}/video`)).status, 404);
-  assert.equal((await client(ctx.baseUrl).get(`/api/media/modules/${mod.id}/video`)).status, 401);
-  assert.equal((await as('INC002').then((c) => c.get(`/api/media/modules/${mod.id}/video`))).status, 404, 'wrong role');
-
-  // progress: seeking to the end earns nothing
-  const seek = await nu.post(`/api/learn/modules/${mod.id}/progress`, { position: 100, delta: 100 });
-  assert.equal(seek.status, 200);
-  assert.ok(seek.data.watched_seconds < 25, `capped, got ${seek.data.watched_seconds}`);
-  assert.equal(seek.data.lesson_completed_at, null);
-  // ...but genuine watching over real time does
-  await ctx.db.query(`UPDATE progress SET watched_seconds = 85, last_report_at = now() - interval '100 seconds' WHERE user_id = $1 AND module_id = $2`, [await idOf('TM900'), mod.id]);
-  const watched = await nu.post(`/api/learn/modules/${mod.id}/progress`, { position: 95, delta: 10 });
-  assert.ok(watched.data.lesson_completed_at);
-  assert.equal(watched.data.status, 'ack_pending', 'no questions: lesson done -> only the acknowledgement is left');
-  assert.equal((await nu.get(`/api/learn/modules/${mod.id}`)).data.last_position, 95, 'resume position is saved');
-  assert.equal((await nu.post(`/api/learn/modules/${mod.id}/acknowledge`)).data.status, 'completed');
-
-  // revocation: the very next request fails, including the next chunk of a video that is already playing
-  assert.equal((await nu.get(`/api/media/modules/${mod.id}/video`, { Range: 'bytes=262144-' })).status, 206);
-  assert.equal((await admin.post(`/api/admin/users/${await idOf('TM900')}/deactivate`)).status, 200);
-  const blocked = await nu.get(`/api/media/modules/${mod.id}/video`, { Range: 'bytes=524288-' });
+  // access removal: next request fails, cookie cleared, cannot sign back in, restoring works
+  const uid = await idOf('TM900');
+  assert.equal((await admin.post(`/api/admin/users/${uid}/deactivate`)).status, 200);
+  const blocked = await nu.get('/api/learn/modules');
   assert.equal(blocked.status, 401);
   assert.equal(blocked.error.code, 'ACCOUNT_DEACTIVATED');
   assert.equal((await client(ctx.baseUrl).post('/api/auth/login', { employeeId: 'TM900', password: 'Fresh-pass-42' })).status, 401);
-  assert.equal((await admin.post(`/api/admin/users/${await idOf('TM900')}/reactivate`)).status, 200);
+  assert.equal((await admin.post(`/api/admin/users/${uid}/reactivate`)).status, 200);
   assert.equal((await nu.get('/api/learn/modules')).status, 401, 'cookie was cleared; must sign in again');
   assert.equal((await nu.post('/api/auth/login', { employeeId: 'TM900', password: 'Fresh-pass-42' })).status, 200);
 });
@@ -294,7 +251,7 @@ test('admin actions are written to the audit log', async () => {
   const admin = await as('ADMIN001');
   const log = (await admin.get('/api/admin/audit')).data;
   const actions = new Set(log.map((l) => l.action));
-  for (const a of ['auth.login', 'user.create', 'user.deactivate', 'module.publish', 'module.new_version', 'media.play']) assert.ok(actions.has(a), a);
+  for (const a of ['auth.login', 'user.create', 'user.deactivate', 'module.publish', 'module.new_version']) assert.ok(actions.has(a), a);
   assert.equal((await (await as('TM002')).get('/api/admin/audit')).status, 403);
 });
 

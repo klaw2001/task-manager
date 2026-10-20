@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db.js';
+import { listAttachments } from '../access.js';
 import { learnerAccess } from '../auth.js';
 import { progressRows } from '../progress-query.js';
 import { scoreAttempt, shuffle } from '../scoring.js';
@@ -40,6 +41,7 @@ async function view(user, moduleId) {
   return {
     ...pick(row, [...LIST_FIELDS, 'instructions', 'ack_text', 'last_position', 'watched_seconds', 'lesson_completed_at', 'assessment_passed_at', 'acknowledged_at', 'randomize']),
     locked: !row.prereq_done,
+    attachments: await listAttachments('module', moduleId),
     scored_questions: n,
     written_questions: written,
     attempts_left: row.max_attempts === 0 ? null : Math.max(0, row.max_attempts - row.attempts_used),

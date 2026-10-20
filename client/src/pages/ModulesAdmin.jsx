@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api, uploadFile, videoDuration } from '../api.js';
+import { api } from '../api.js';
+import Attachments from '../Attachments.jsx';
+import AttachmentsEditor from '../AttachmentsEditor.jsx';
 import SecureVideo from '../SecureVideo.jsx';
-import { Badge, Card, Confirm, Field, LEARNER_ROLES, Loading, Modal, Page, ROLE_LABEL, StatusBadge, fmtDate, fmtDuration, useLoad, useToast } from '../ui.jsx';
+import VideoUpload from '../VideoUpload.jsx';
+import { Card, Confirm, Field, LEARNER_ROLES, Loading, Modal, Page, ROLE_LABEL, StatusBadge, Badge, fmtDate, useLoad, useToast } from '../ui.jsx';
 
 /* ---------------- list ---------------- */
 export function ModuleList() {
@@ -35,44 +38,27 @@ export function ModuleList() {
 
 /* ---------------- details tab ---------------- */
 const NEW = {
-  title: '', description: '', category: 'General', language: 'en', videoKey: null, durationSeconds: null, instructions: '', brandId: '', roles: ['team_member'],
+  title: '', description: '', category: 'General', language: 'en', videoId: null, instructions: '', brandId: '', roles: ['team_member'],
   mandatory: true, sequence: 0, prerequisiteId: '', defaultDueDays: 14, minWatchPercent: 90, passMark: 70, maxAttempts: 3, randomize: true, requiresAck: true,
   ackText: 'I have read and understood this SOP and will follow it.',
 };
-const fromModule = (m) => ({ ...NEW, ...m, brandId: m.brand_id ?? '', videoKey: m.video_key, durationSeconds: m.duration_seconds, prerequisiteId: m.prerequisite_id ?? '', defaultDueDays: m.default_due_days, minWatchPercent: m.min_watch_percent, passMark: m.pass_mark, maxAttempts: m.max_attempts, requiresAck: m.requires_ack, ackText: m.ack_text });
+const fromModule = (m) => ({ ...NEW, ...m, brandId: m.brand_id ?? '', videoId: m.video_id, prerequisiteId: m.prerequisite_id ?? '', defaultDueDays: m.default_due_days, minWatchPercent: m.min_watch_percent, passMark: m.pass_mark, maxAttempts: m.max_attempts, requiresAck: m.requires_ack, ackText: m.ack_text });
 
 function DetailsTab({ module, brands, modules, onSaved }) {
   const toast = useToast();
   const navigate = useNavigate();
   const [f, setF] = useState(module ? fromModule(module) : NEW);
   const [busy, setBusy] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
   const num = (k) => (e) => setF({ ...f, [k]: e.target.value === '' ? '' : Number(e.target.value) });
   const toggleRole = (r) => setF({ ...f, roles: f.roles.includes(r) ? f.roles.filter((x) => x !== r) : [...f.roles, r] });
-
-  async function pickVideo(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const [key, seconds] = await Promise.all([uploadFile(file, 'video'), videoDuration(file)]);
-      setF((cur) => ({ ...cur, videoKey: key, durationSeconds: seconds }));
-      toast(seconds ? 'Video uploaded — remember to save' : 'Video uploaded, but its length could not be read — remember to save');
-    } catch (err) {
-      toast.error(err);
-    } finally {
-      setUploading(false);
-      e.target.value = '';
-    }
-  }
 
   async function save(e) {
     e.preventDefault();
     setBusy(true);
     const body = {
       title: f.title.trim(), description: f.description, category: f.category.trim() || 'General', language: f.language,
-      videoKey: f.videoKey, durationSeconds: f.videoKey ? f.durationSeconds || null : null, instructions: f.instructions,
+      videoId: f.videoId, instructions: f.instructions,
       brandId: f.brandId === '' ? null : Number(f.brandId), roles: f.roles, mandatory: f.mandatory, sequence: Number(f.sequence) || 0,
       prerequisiteId: f.prerequisiteId === '' ? null : Number(f.prerequisiteId), defaultDueDays: Number(f.defaultDueDays), minWatchPercent: Number(f.minWatchPercent),
       passMark: Number(f.passMark), maxAttempts: Number(f.maxAttempts), randomize: f.randomize, requiresAck: f.requiresAck, ackText: f.ackText,
@@ -107,13 +93,13 @@ function DetailsTab({ module, brands, modules, onSaved }) {
 
       <Card>
         <h2>Lesson</h2>
-        <Field label="Video" hint="MP4, WebM or MOV. Staff can only stream it while signed in and inside their shift; there is no download link.">
-          <input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={pickVideo} disabled={uploading} />
-        </Field>
-        {uploading && <p className="notice">Uploading… keep this page open.</p>}
-        {f.videoKey && !uploading && (
-          <p className="row"><Badge tone="green">Video attached</Badge><span className="muted small">length {fmtDuration(f.durationSeconds)}</span><button type="button" className="btn small" onClick={() => setF({ ...f, videoKey: null, durationSeconds: null })}>Remove</button></p>
-        )}
+        <VideoUpload
+          label="Lesson video"
+          videoId={f.videoId}
+          onUploaded={(id) => setF((cur) => ({ ...cur, videoId: id }))}
+          onRemove={() => setF({ ...f, videoId: null })}
+        />
+        {f.videoId && f.videoId !== module?.video_id && <p className="notice warn small">Save the module to attach this video. Publish a new version if staff should see it.</p>}
         <Field label="Written instructions" hint="Shown under the video. Modules without a video use this as the lesson." wide>
           <textarea value={f.instructions} onChange={set('instructions')} style={{ minHeight: 140 }} />
         </Field>
@@ -131,7 +117,7 @@ function DetailsTab({ module, brands, modules, onSaved }) {
         <label className="check"><input type="checkbox" checked={f.requiresAck} onChange={set('requiresAck')} />Require acknowledgement of the SOP</label>
         {f.requiresAck && <Field label="Acknowledgement wording"><input value={f.ackText} onChange={set('ackText')} /></Field>}
       </Card>
-      <div className="row end"><button className="btn primary" disabled={busy || uploading || f.roles.length === 0}>{module ? 'Save changes' : 'Create module'}</button></div>
+      <div className="row end"><button className="btn primary" disabled={busy || f.roles.length === 0}>{module ? 'Save changes' : 'Create module'}</button></div>
     </form>
   );
 }
@@ -308,8 +294,9 @@ function PreviewTab({ module }) {
   return (
     <div className="stack">
       <div className="notice">Preview as staff will see it. Nothing is recorded.</div>
-      {module.video_key ? <SecureVideo src={`/api/media/modules/${module.id}/video`} /> : <div className="notice warn">No video attached.</div>}
+      {module.video_id ? <SecureVideo source={{ type: 'module', id: module.id }} /> : <div className="notice warn">No lesson video attached.</div>}
       {module.instructions && <Card><h2>Instructions</h2><p style={{ whiteSpace: 'pre-wrap' }}>{module.instructions}</p></Card>}
+      <Attachments items={module.attachments} />
       <Card>
         <h2>Assessment ({module.questions.length} questions · pass mark {module.pass_mark}%)</h2>
         {module.questions.map((q, i) => (
@@ -368,7 +355,7 @@ export function ModuleEditor() {
   if (!brands.data || !modules.data) return <Loading state={!brands.data ? brands : modules} />;
 
   const act = (path, msg) => async () => { try { await api.post(`/api/admin/modules/${id}/${path}`); toast(msg); state.reload(); } catch (e) { toast.error(e); throw e; } };
-  const tabs = isNew ? [['details', 'Details']] : [['details', 'Details'], ['questions', `Questions (${m.questions.length})`], ['assign', 'Assign & progress'], ['versions', 'Versions'], ['preview', 'Preview']];
+  const tabs = isNew ? [['details', 'Details']] : [['details', 'Details'], ['questions', `Questions (${m.questions.length})`], ['resources', `Attachments (${m.attachments.length})`], ['assign', 'Assign & progress'], ['versions', 'Versions'], ['preview', 'Preview']];
 
   return (
     <Page
@@ -387,6 +374,7 @@ export function ModuleEditor() {
       <div className="tabs" role="tablist">{tabs.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
       {tab === 'details' && <DetailsTab key={m?.updated_at ?? 'new'} module={m} brands={brands.data} modules={modules.data} onSaved={() => { state.reload(); modules.reload(); }} />}
       {tab === 'questions' && <QuestionsTab module={m} onSaved={state.reload} />}
+      {tab === 'resources' && <AttachmentsEditor owner={{ moduleId: m.id }} items={m.attachments} onChanged={state.reload} />}
       {tab === 'assign' && <AssignTab module={m} />}
       {tab === 'versions' && <VersionsTab module={m} />}
       {tab === 'preview' && <PreviewTab module={m} />}

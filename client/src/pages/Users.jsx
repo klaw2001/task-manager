@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api } from '../api.js';
 import { Badge, Confirm, Field, Loading, Modal, Page, ROLE_LABEL, fmtDateTime, useLoad, useToast } from '../ui.jsx';
 
-const EMPTY = { employeeId: '', name: '', mobile: '', role: 'team_member', brandId: '', outletId: '', designation: '', managerId: '', joiningDate: '', language: 'en', shiftStart: '', shiftEnd: '', dueDays: '' };
+const EMPTY = { employeeId: '', name: '', mobile: '', email: '', sendInvite: true, role: 'team_member', brandId: '', outletId: '', designation: '', managerId: '', joiningDate: '', language: 'en', shiftStart: '', shiftEnd: '', dueDays: '' };
 const LANGUAGES = [['en', 'English'], ['hi', 'Hindi'], ['mr', 'Marathi'], ['gu', 'Gujarati'], ['ta', 'Tamil'], ['te', 'Telugu'], ['kn', 'Kannada'], ['bn', 'Bengali']];
 const num = (v) => (v === '' ? null : Number(v));
 
@@ -10,7 +10,7 @@ function UserForm({ user, outlets, brands, users, onClose, onDone }) {
   const toast = useToast();
   const editing = Boolean(user);
   const [f, setF] = useState(editing ? {
-    employeeId: user.employee_id, name: user.name, mobile: user.mobile || '', role: user.role, brandId: user.brand_id ?? '', outletId: user.outlet_id ?? '',
+    employeeId: user.employee_id, name: user.name, mobile: user.mobile || '', email: user.email || '', sendInvite: true, role: user.role, brandId: user.brand_id ?? '', outletId: user.outlet_id ?? '',
     designation: user.designation || '', managerId: user.manager_id ?? '', joiningDate: user.joining_date || '', language: user.language,
     shiftStart: user.shift_start?.slice(0, 5) || '', shiftEnd: user.shift_end?.slice(0, 5) || '', dueDays: '',
   } : EMPTY);
@@ -23,7 +23,7 @@ function UserForm({ user, outlets, brands, users, onClose, onDone }) {
     e.preventDefault();
     setBusy(true);
     const body = {
-      employeeId: f.employeeId.trim(), name: f.name.trim(), mobile: f.mobile.trim() || null, role: f.role,
+      employeeId: f.employeeId.trim(), name: f.name.trim(), mobile: f.mobile.trim() || null, email: f.email.trim() || null, role: f.role,
       outletId: isStaff ? num(f.outletId) : null, brandId: f.role === 'franchisee' ? num(f.brandId) : isAdminRole ? null : undefined,
       designation: f.designation.trim() || null, managerId: num(f.managerId), joiningDate: f.joiningDate || null, language: f.language,
       shiftStart: !isAdminRole && f.shiftStart ? f.shiftStart : null, shiftEnd: !isAdminRole && f.shiftEnd ? f.shiftEnd : null,
@@ -34,7 +34,7 @@ function UserForm({ user, outlets, brands, users, onClose, onDone }) {
         toast('User updated');
         onDone();
       } else {
-        const res = await api.post('/api/admin/users', { ...body, dueDays: f.dueDays ? Number(f.dueDays) : undefined });
+        const res = await api.post('/api/admin/users', { ...body, sendInvite: Boolean(body.email) && f.sendInvite, dueDays: f.dueDays ? Number(f.dueDays) : undefined });
         onDone(res);
       }
     } catch (err) {
@@ -51,6 +51,7 @@ function UserForm({ user, outlets, brands, users, onClose, onDone }) {
           <Field label="Name"><input value={f.name} onChange={set('name')} required /></Field>
           <Field label="Employee ID" hint="They sign in with this"><input value={f.employeeId} onChange={set('employeeId')} required /></Field>
           <Field label="Mobile number"><input type="tel" inputMode="tel" value={f.mobile} onChange={set('mobile')} /></Field>
+          <Field label="Email (optional)" hint="For login details and training reminders"><input type="email" value={f.email} onChange={set('email')} autoComplete="off" /></Field>
           <Field label="Role">
             <select value={f.role} onChange={set('role')}>{Object.entries(ROLE_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
           </Field>
@@ -68,6 +69,9 @@ function UserForm({ user, outlets, brands, users, onClose, onDone }) {
           <Field label="Preferred language"><select value={f.language} onChange={set('language')}>{LANGUAGES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
           {!editing && isStaff && <Field label="Training deadline (days)" hint="Leave blank to use each module’s default"><input type="number" min="1" max="365" value={f.dueDays} onChange={set('dueDays')} /></Field>}
         </div>
+        {!editing && f.email.trim() && (
+          <label className="check"><input type="checkbox" checked={f.sendInvite} onChange={(e) => setF({ ...f, sendInvite: e.target.checked })} /><span>Email the Employee ID and temporary password to this address</span></label>
+        )}
         {!isAdminRole && (
           <>
             <h3>Shift (optional)</h3>
@@ -104,6 +108,7 @@ export default function Users() {
   const outlets = useLoad(() => api.get('/api/org/outlets'));
   const brands = useLoad(() => api.get('/api/org/brands'));
   const [dialog, setDialog] = useState(null);
+  const [emailReset, setEmailReset] = useState(true);
 
   const refresh = () => { state.reload(); everyone.reload(); };
   const act = (fn, msg) => async () => { try { const r = await fn(); toast(msg); refresh(); return r; } catch (e) { toast.error(e); throw e; } };
@@ -122,7 +127,7 @@ export default function Users() {
             <tbody>
               {state.data.map((u) => (
                 <tr key={u.id} className={u.is_active ? '' : 'inactive'}>
-                  <td><b>{u.name}</b><div className="muted small">{u.employee_id}{u.mobile ? ` · ${u.mobile}` : ''}</div></td>
+                  <td><b>{u.name}</b><div className="muted small">{u.employee_id}{u.mobile ? ` · ${u.mobile}` : ''}</div>{u.email && <div className="muted small">{u.email}</div>}</td>
                   <td>{ROLE_LABEL[u.role]}{!u.is_active && <> <Badge tone="red">Deactivated</Badge></>}{u.must_change_password && u.is_active && <> <Badge tone="amber">Invited</Badge></>}</td>
                   <td>{u.outlet_name ? `${u.brand_name} – ${u.outlet_name}` : u.brand_name || '—'}</td>
                   <td>{u.shift_start ? `${u.shift_start.slice(0, 5)}–${u.shift_end.slice(0, 5)}` : 'Always'}</td>
@@ -148,14 +153,21 @@ export default function Users() {
         <UserForm
           user={dialog.user} outlets={outlets.data || []} brands={brands.data || []} users={everyone.data || []}
           onClose={() => setDialog(null)}
-          onDone={(created) => { refresh(); setDialog(created ? { type: 'secret', title: `${created.user.name} added`, intro: `Give ${created.user.name} their Employee ID (${created.user.employee_id}) and this temporary password. ${created.assigned} training module(s) were assigned.`, password: created.temporaryPassword } : null); }}
+          onDone={(created) => { refresh(); setDialog(created ? { type: 'secret', title: `${created.user.name} added`, intro: `${created.emailed ? `Login details were emailed to ${created.user.email}. ` : created.emailError ? `The email could not be sent (${created.emailError}), so give ${created.user.name} these details yourself. ` : `Give ${created.user.name} their Employee ID (${created.user.employee_id}) and this temporary password. `}${created.assigned} training module(s) were assigned.`, password: created.temporaryPassword } : null); }}
         />
       )}
       {dialog?.type === 'secret' && <Secret title={dialog.title} intro={dialog.intro} password={dialog.password} onClose={() => setDialog(null)} />}
       {dialog?.type === 'reset' && (
         <Confirm title="Reset password" message={`Create a new temporary password for ${dialog.user.name}? Their current password stops working.`} confirmLabel="Reset"
           onClose={() => setDialog((d) => (d?.type === 'reset' ? null : d))} // keep the follow-up "new password" dialog open
-          onConfirm={async () => { const r = await act(() => api.post(`/api/admin/users/${dialog.user.id}/reset-password`), 'Password reset')(); setDialog({ type: 'secret', title: 'New temporary password', intro: `For ${dialog.user.name} (${dialog.user.employee_id}):`, password: r.temporaryPassword }); }} />
+          onConfirm={async () => {
+            const r = await act(() => api.post(`/api/admin/users/${dialog.user.id}/reset-password`, { sendEmail: Boolean(dialog.user.email) && emailReset }), 'Password reset')();
+            setDialog({ type: 'secret', title: 'New temporary password', intro: `For ${dialog.user.name} (${dialog.user.employee_id}):${r.emailed ? ` It was also emailed to ${dialog.user.email}.` : r.emailError ? ` The email could not be sent (${r.emailError}).` : ''}`, password: r.temporaryPassword });
+          }}>
+          {dialog.user.email
+            ? <label className="check"><input type="checkbox" checked={emailReset} onChange={(e) => setEmailReset(e.target.checked)} /><span>Email it to {dialog.user.email}</span></label>
+            : <p className="muted small">No email address on file, so you will need to pass it on yourself.</p>}
+        </Confirm>
       )}
       {dialog?.type === 'deactivate' && (
         <Confirm danger title="Remove access" confirmLabel="Remove access"

@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startFakeBunny, startFakeSmtp } from './fakes.js';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -10,8 +11,17 @@ export async function setup({ seed = true } = {}) {
   if (!url || !/_test(\?|$)/.test(url)) throw new Error('Set TEST_DATABASE_URL to a throwaway database whose name ends in _test (it is wiped on every run)');
   process.env.DATABASE_URL = url;
   process.env.LOGIN_FAILURES_PER_ACCOUNT = '3';
-  process.env.MEDIA_CHUNK_BYTES = String(256 * 1024);
   process.env.LOCAL_STORAGE_DIR = path.join(root, '.test-uploads');
+
+  // stand-ins for Bunny Stream and Brevo, so the real flows run without credentials
+  const bunny = await startFakeBunny();
+  const smtp = await startFakeSmtp();
+  Object.assign(process.env, {
+    BUNNY_STREAM_LIBRARY_ID: bunny.libraryId, BUNNY_STREAM_API_KEY: bunny.apiKey, BUNNY_TOKEN_KEY: bunny.tokenKey,
+    BUNNY_CDN_HOSTNAME: bunny.url, BUNNY_API_BASE: bunny.url, BUNNY_TUS_ENDPOINT: `${bunny.url}/tusupload`, BUNNY_TOKEN_TTL_SECONDS: '600',
+    SMTP_HOST: '127.0.0.1', SMTP_PORT: String(smtp.port), SMTP_USER: smtp.user, SMTP_PASS: smtp.pass, SMTP_REQUIRE_TLS: 'false',
+    MAIL_FROM: 'Staff Training <training@example.test>', APP_URL: 'https://training.example.test',
+  });
 
   const { db } = await import('../src/db.js');
   await db.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
@@ -21,7 +31,7 @@ export async function setup({ seed = true } = {}) {
   const { createApp } = await import('../src/app.js');
   const server = await new Promise((ok) => { const s = createApp().listen(0, () => ok(s)); });
   const baseUrl = `http://127.0.0.1:${server.address().port}`;
-  return { db, baseUrl, close: async () => { server.close(); await db.close(); } };
+  return { db, baseUrl, bunny, smtp, close: async () => { server.close(); await db.close(); await bunny.close(); await smtp.close(); } };
 }
 
 export function client(baseUrl) {

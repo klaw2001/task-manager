@@ -63,3 +63,30 @@ test('status derivation', () => {
   assert.equal(isOverdue('in_progress', '2020-01-01'), true);
   assert.equal(isOverdue('completed', '2020-01-01'), false);
 });
+
+import { directoryToken } from '../src/bunny.js';
+import { reminderItems } from '../src/reminders.js';
+
+test('Bunny directory token matches an independent HMAC-SHA256 (checked with openssl)', () => {
+  // printf '/abc/1700000000token_path=/abc/' | openssl dgst -sha256 -hmac 'secret-key' -binary | base64 | tr '+/' '-_' | tr -d '='
+  assert.equal(directoryToken('secret-key', '/abc/', 1700000000), 'HS256-PmycFoV5PzMuaGXgS8rlcm_iKD3LY6jRppreexJ3-HQ');
+});
+
+test('reminder items: one kind per assignment, most urgent first, overdue reminders stop after five', () => {
+  const now = new Date('2026-03-10T10:00:00Z');
+  const DAY = 24 * 3600 * 1000;
+  const base = { user_id: 1, module_id: 1, version: 1, title: 'T', status: 'not_started', assigned_at: new Date(+now - 30 * DAY) };
+  const kind = (r) => reminderItems([{ ...base, ...r }], now)[0]?.kind;
+  assert.equal(kind({ due_at: new Date(+now - DAY) }), 'overdue');
+  assert.equal(kind({ due_at: new Date(+now + 2 * DAY) }), 'due_soon');
+  assert.equal(kind({ due_at: new Date(+now + 10 * DAY) }), undefined, 'not due yet and not new: nothing to say');
+  assert.equal(kind({ due_at: new Date(+now + 10 * DAY), assigned_at: new Date(+now - 3600_000) }), 'new_training');
+  assert.equal(kind({ due_at: new Date(+now + 10 * DAY), status: 'retraining_required' }), 'retraining');
+  assert.equal(kind({ due_at: new Date(+now + 2 * DAY), assigned_at: new Date(+now - 3600_000) }), 'due_soon', 'urgent wins over "new"');
+  assert.equal(kind({ due_at: new Date(+now - DAY), status: 'completed' }), undefined);
+  assert.equal(kind({ due_at: new Date(+now - 14 * DAY) }), 'overdue');
+  assert.equal(kind({ due_at: new Date(+now - 15 * DAY) }), undefined, 'the fifth overdue reminder is the last');
+  // keys change with the bucket (so each 3-day step is a new reminder) and with the due date
+  const key = (due) => reminderItems([{ ...base, due_at: due }], now)[0].key;
+  assert.notEqual(key(new Date(+now - DAY)), key(new Date(+now - 4 * DAY)));
+});

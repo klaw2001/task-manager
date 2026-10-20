@@ -6,6 +6,8 @@ import { db } from '../db.js';
 import { audit } from '../audit.js';
 import { authenticate, requireFreshPassword, requireRoles } from '../auth.js';
 import { assignTrainingPath } from '../assign.js';
+import { inviteEmail, passwordResetEmail } from '../emails.js';
+import { deliver } from '../notify.js';
 import { badRequest, notFound } from '../errors.js';
 import { insertSql, updateSql } from '../sql.js';
 
@@ -20,6 +22,7 @@ const fields = {
   employeeId: z.string().trim().min(2).max(40),
   name: z.string().trim().min(1).max(120),
   mobile: z.string().trim().max(20).nullable().optional(),
+  email: z.email().max(200).nullable().optional(),
   role: z.enum(ROLES),
   brandId: id,
   outletId: id,
@@ -30,13 +33,13 @@ const fields = {
   shiftStart: time,
   shiftEnd: time,
 };
-const createBody = z.object(fields).extend({ dueDays: z.number().int().min(1).max(365).optional() });
+const createBody = z.object(fields).extend({ dueDays: z.number().int().min(1).max(365).optional(), sendInvite: z.boolean().optional() });
 const patchBody = z.object(fields).partial();
 
 const tempPassword = () => `${randomBytes(5).toString('base64url')}${Math.floor(10 + Math.random() * 90)}`;
 
 const LIST_SQL = `
-  SELECT u.id, u.employee_id, u.name, u.mobile, u.role, u.brand_id, b.name AS brand_name, u.outlet_id, o.name AS outlet_name,
+  SELECT u.id, u.employee_id, u.name, u.mobile, u.email, u.role, u.brand_id, b.name AS brand_name, u.outlet_id, o.name AS outlet_name,
          u.designation, u.manager_id, m.name AS manager_name, u.joining_date, u.language, u.shift_start, u.shift_end,
          u.is_active, u.deactivated_at, u.last_login_at, u.must_change_password
   FROM users u
@@ -78,7 +81,7 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { dueDays, ...body } = createBody.parse(req.body);
+  const { dueDays, sendInvite, ...body } = createBody.parse(req.body);
   await normalise(body);
   const password = tempPassword();
   const { text, params } = insertSql('users', { ...body, passwordHash: await bcrypt.hash(password, 10) });
@@ -89,7 +92,10 @@ router.post('/', async (req, res) => {
   });
   const assigned = await assignTrainingPath(db.query, user.id, req.user.id, dueDays ?? null);
   audit(req, 'user.create', 'user', user.id, { employeeId: user.employee_id, role: user.role, assigned });
-  res.status(201).json({ user: await db.one(`${LIST_SQL} WHERE u.id = $1`, [user.id]), temporaryPassword: password, assigned });
+  const mail = sendInvite && user.email
+    ? await deliver({ userId: user.id, to: user.email, kind: 'invite', ...inviteEmail({ name: user.name, employeeId: user.employee_id, password }) })
+    : null;
+  res.status(201).json({ user: await db.one(`${LIST_SQL} WHERE u.id = $1`, [user.id]), temporaryPassword: password, assigned, emailed: mail?.sent ?? null, emailError: mail?.error ?? null });
 });
 
 router.patch('/:id', async (req, res) => {
@@ -131,9 +137,13 @@ router.post('/:id/reactivate', async (req, res) => {
 
 router.post('/:id/reset-password', async (req, res) => {
   const userId = Number(req.params.id);
+  const { sendEmail } = z.object({ sendEmail: z.boolean().optional() }).parse(req.body ?? {});
   const password = tempPassword();
-  const done = await db.one('UPDATE users SET password_hash = $1, must_change_password = true WHERE id = $2 RETURNING id', [await bcrypt.hash(password, 10), userId]);
-  if (!done) throw notFound('User not found');
+  const user = await db.one('UPDATE users SET password_hash = $1, must_change_password = true WHERE id = $2 RETURNING id, name, email, employee_id', [await bcrypt.hash(password, 10), userId]);
+  if (!user) throw notFound('User not found');
   audit(req, 'user.reset_password', 'user', userId);
-  res.json({ temporaryPassword: password });
+  const mail = sendEmail && user.email
+    ? await deliver({ userId, to: user.email, kind: 'password_reset', ...passwordResetEmail({ name: user.name, employeeId: user.employee_id, password }) })
+    : null;
+  res.json({ temporaryPassword: password, emailed: mail?.sent ?? null, emailError: mail?.error ?? null });
 });

@@ -9,11 +9,13 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { config } from './config.js';
 import { badRequest } from './errors.js';
 
+// Videos are not stored here: they go to Bunny Stream (see bunny.js). This is for images and PDFs.
 const TYPES = {
-  video: ['video/mp4', 'video/webm', 'video/quicktime'],
   image: ['image/jpeg', 'image/png', 'image/webp'],
+  pdf: ['application/pdf'],
 };
-const KEY_PATTERN = /^(video|image)s\/[0-9a-f-]{36}\/[\w.-]{1,120}$/;
+export const UPLOAD_KINDS = Object.keys(TYPES);
+const KEY_PATTERN = /^(image|pdf)s\/[0-9a-f-]{36}\/[\w.-]{1,120}$/;
 
 export const isValidKey = (key) => KEY_PATTERN.test(key);
 
@@ -23,7 +25,7 @@ export function newKey(kind, filename, contentType) {
   return `${kind}s/${randomUUID()}/${safe}`;
 }
 
-const EXT_TYPES = { '.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
+export const EXT_TYPES = { '.pdf': 'application/pdf', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
 
 /** Both drivers expose head(key) -> { size, contentType } | null and read(key, start, endInclusive) -> readable. */
 function localDriver() {

@@ -6,7 +6,8 @@ import { authenticate, requireAdmin, requireFreshPassword } from '../auth.js';
 import { assignModules } from '../assign.js';
 import { progressRows } from '../progress-query.js';
 import { withStatus } from '../status.js';
-import { isValidKey } from '../storage.js';
+import { VIDEO_ID, bunnyEnabled, getVideo, requireBunny } from '../bunny.js';
+import { listAttachments } from '../access.js';
 import { badRequest, notFound } from '../errors.js';
 import { insertSql, updateSql } from '../sql.js';
 
@@ -14,15 +15,14 @@ export const router = Router();
 router.use(authenticate, requireFreshPassword, requireAdmin);
 
 const LEARNER_ROLES = ['team_member', 'outlet_incharge', 'franchisee'];
-const videoKey = z.string().refine((k) => isValidKey(k) && k.startsWith('videos/'), 'Invalid video').nullable().optional();
+const videoId = z.string().regex(VIDEO_ID, 'Invalid video').nullable().optional();
 
 const fields = {
   title: z.string().trim().min(1).max(200),
   description: z.string().max(2000).optional(),
   category: z.string().trim().min(1).max(60).optional(),
   language: z.string().trim().min(2).max(10).optional(),
-  videoKey,
-  durationSeconds: z.number().int().min(1).max(4 * 3600).nullable().optional(),
+  videoId,
   instructions: z.string().max(20000).optional(),
   brandId: z.number().int().nullable().optional(),
   roles: z.array(z.enum(LEARNER_ROLES)).min(1),
@@ -60,15 +60,48 @@ const getModule = async (id, q = db.one.bind(db)) => {
   return m;
 };
 
+/** Length in seconds of a finished Bunny video; throws if it is missing or still being converted. */
+async function readyVideoLength(videoId, label = 'The video') {
+  requireBunny();
+  const v = await getVideo(videoId);
+  if (!v) throw badRequest(`${label} was not found in the video library`);
+  if (!v.ready) {
+    throw badRequest(`${label} is still being processed (${v.state}${v.progress ? ` ${v.progress}%` : ''}). Try again in a few minutes.`, 'VIDEO_NOT_READY');
+  }
+  return v.length;
+}
+
+/** Everything video-related that must be in order before staff see a module. Returns the lesson video's length. */
+async function checkVideos(moduleId, mainVideoId) {
+  const length = mainVideoId ? await readyVideoLength(mainVideoId, 'The lesson video') : null;
+  const extra = await db.all(`SELECT title, video_id FROM attachments WHERE module_id = $1 AND kind = 'video'`, [moduleId]);
+  for (const a of extra) await readyVideoLength(a.video_id, `The attached video “${a.title}”`);
+  return length;
+}
+
+/** When the lesson video changes, take its length from Bunny (viewing-time rules need it). */
+async function videoFields(videoId) {
+  if (videoId === undefined) return {};
+  if (!videoId) return { durationSeconds: null };
+  requireBunny();
+  const v = await getVideo(videoId);
+  if (!v) throw badRequest('That video was not found in the video library');
+  return { durationSeconds: v.ready && v.length ? v.length : null };
+}
+
+const adminAttachments = (moduleId) =>
+  db.all('SELECT id, kind, title, content_type, size_bytes, video_id FROM attachments WHERE module_id = $1 ORDER BY position, id', [moduleId]);
+
 const getQuestions = (moduleId) => db.all('SELECT id, position, type, text, options FROM questions WHERE module_id = $1 ORDER BY position, id', [moduleId]);
 
 async function snapshot(c, module, changeType, note, userId) {
   const { rows: questions } = await c.query('SELECT type, text, options FROM questions WHERE module_id = $1 ORDER BY position, id', [module.id]);
+  const { rows: attachments } = await c.query('SELECT kind, title, file_key, video_id, content_type FROM attachments WHERE module_id = $1 ORDER BY position, id', [module.id]);
   const { password_hash, ...rest } = module;
   await c.query(
     `INSERT INTO module_versions (module_id, version, change_type, note, snapshot, created_by)
      VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (module_id, version) DO NOTHING`,
-    [module.id, module.version, changeType, note ?? null, JSON.stringify({ module: rest, questions }), userId],
+    [module.id, module.version, changeType, note ?? null, JSON.stringify({ module: rest, questions, attachments }), userId],
   );
 }
 
@@ -87,6 +120,7 @@ router.get('/', async (_req, res) => {
 
 router.post('/', async (req, res) => {
   const body = createBody.parse(req.body);
+  Object.assign(body, await videoFields(body.videoId));
   const { text, params } = insertSql('modules', { ...body, createdBy: req.user.id });
   const m = await db.one(text, params).catch((err) => {
     if (err.code === '23503') throw badRequest('Unknown brand or prerequisite module');
@@ -98,7 +132,7 @@ router.post('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   const m = await getModule(Number(req.params.id));
-  res.json({ ...m, questions: await getQuestions(m.id) });
+  res.json({ ...m, questions: await getQuestions(m.id), attachments: await adminAttachments(m.id) });
 });
 
 router.patch('/:id', async (req, res) => {
@@ -106,6 +140,7 @@ router.patch('/:id', async (req, res) => {
   await getModule(id);
   const body = patchBody.parse(req.body);
   if (body.prerequisiteId === id) throw badRequest('A module cannot be its own prerequisite');
+  Object.assign(body, await videoFields(body.videoId));
   const stmt = updateSql('modules', id, body);
   if (!stmt) throw badRequest('Nothing to update');
   const m = await db.one(stmt.text, stmt.params).catch((err) => {
@@ -134,11 +169,17 @@ router.put('/:id/questions', async (req, res) => {
 
 router.post('/:id/publish', async (req, res) => {
   const id = Number(req.params.id);
+  const current = await getModule(id);
+  if (current.status === 'published') return res.json(current);
+  if (!current.video_id && !current.instructions.trim()) throw badRequest('Add a video or written instructions before publishing');
+  const length = await checkVideos(id, current.video_id); // talks to Bunny, so done before taking the row lock
   const m = await db.tx(async (c) => {
     const module = await getModule(id, async (t, p) => (await c.query(`${t} FOR UPDATE`, p)).rows[0]);
     if (module.status === 'published') return module;
-    if (!module.video_key && !module.instructions.trim()) throw badRequest('Add a video or written instructions before publishing');
-    const { rows } = await c.query(`UPDATE modules SET status = 'published', updated_at = now() WHERE id = $1 RETURNING *`, [id]);
+    const { rows } = await c.query(
+      `UPDATE modules SET status = 'published', duration_seconds = COALESCE($2::int, duration_seconds), updated_at = now() WHERE id = $1 RETURNING *`,
+      [id, length],
+    );
     await snapshot(c, rows[0], 'initial', 'Published', req.user.id);
     return rows[0];
   });
@@ -164,10 +205,16 @@ router.post('/:id/new-version', async (req, res) => {
   const body = z
     .object({ changeType: z.enum(['retrain', 'reack']), note: z.string().trim().min(1).max(500), dueDays: z.number().int().min(1).max(365).optional() })
     .parse(req.body);
+  const before = await getModule(id);
+  if (before.status !== 'published') throw badRequest('Only a published module can get a new version');
+  const length = await checkVideos(id, before.video_id); // the new version must not go live with an unfinished video
   const m = await db.tx(async (c) => {
     const current = await getModule(id, async (t, p) => (await c.query(`${t} FOR UPDATE`, p)).rows[0]);
     if (current.status !== 'published') throw badRequest('Only a published module can get a new version');
-    const { rows } = await c.query('UPDATE modules SET version = version + 1, updated_at = now() WHERE id = $1 RETURNING *', [id]);
+    const { rows } = await c.query(
+      'UPDATE modules SET version = version + 1, duration_seconds = COALESCE($2::int, duration_seconds), updated_at = now() WHERE id = $1 RETURNING *',
+      [id, length],
+    );
     const next = rows[0];
     await snapshot(c, next, body.changeType, body.note, req.user.id);
     if (body.changeType === 'reack') {

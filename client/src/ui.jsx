@@ -119,11 +119,12 @@ export function Modal({ title, onClose, children, wide }) {
   );
 }
 
-export function Confirm({ title, message, confirmLabel = 'Confirm', danger, onConfirm, onClose }) {
+export function Confirm({ title, message, confirmLabel = 'Confirm', danger, onConfirm, onClose, children }) {
   const [busy, setBusy] = useState(false);
   return (
     <Modal title={title} onClose={onClose}>
       <p>{message}</p>
+      {children}
       <div className="row end">
         <button className="btn" onClick={onClose}>Cancel</button>
         <button className={`btn ${danger ? 'danger' : 'primary'}`} disabled={busy} onClick={async () => { setBusy(true); try { await onConfirm(); onClose(); } finally { setBusy(false); } }}>

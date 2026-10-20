@@ -33,20 +33,10 @@ export const api = {
   delete: (url) => request('DELETE', url),
 };
 
-/** Uploads a file via a server-issued slot (S3 presigned URL in production, this server locally). Returns the storage key. */
+/** Uploads an image or PDF via a server-issued slot (S3 presigned URL in production, this server locally). Returns the storage key. Videos use VideoUpload (Bunny). */
 export async function uploadFile(file, kind) {
   const slot = await api.post('/api/admin/uploads', { kind, filename: file.name, contentType: file.type });
   const res = await fetch(slot.url, { method: slot.method, headers: { 'Content-Type': file.type, ...(slot.headers || {}) }, body: file, credentials: slot.url.startsWith('/') ? 'same-origin' : 'omit' });
   if (!res.ok) throw new Error(`Upload failed (${res.status})`);
   return slot.key;
 }
-
-/** Reads a video file's length in seconds in the browser. */
-export const videoDuration = (file) =>
-  new Promise((resolve) => {
-    const v = document.createElement('video');
-    v.preload = 'metadata';
-    v.onloadedmetadata = () => { URL.revokeObjectURL(v.src); resolve(Math.round(v.duration) || null); };
-    v.onerror = () => resolve(null);
-    v.src = URL.createObjectURL(file);
-  });

@@ -12,6 +12,7 @@ import { ModuleList, ModuleEditor } from './pages/ModulesAdmin.jsx';
 import { RecipeAdminList, RecipeEditor } from './pages/RecipesAdmin.jsx';
 import Org from './pages/Org.jsx';
 import Audit from './pages/Audit.jsx';
+import Email from './pages/Email.jsx';
 
 const LEARNERS = ['team_member', 'outlet_incharge', 'franchisee'];
 const MANAGERS = ['super_admin', 'training_admin', 'outlet_incharge', 'franchisee'];
@@ -21,7 +22,7 @@ function navFor(user) {
   if (LEARNERS.includes(user.role)) items.push({ to: '/', icon: '🎓', label: 'Training', end: true }, { to: '/recipes', icon: '🍳', label: 'Recipes' });
   if (MANAGERS.includes(user.role)) items.push({ to: '/team', icon: '📊', label: user.isAdmin ? 'Reports' : 'My team' });
   if (user.isAdmin) items.push({ to: '/manage/modules', icon: '📚', label: 'Modules' }, { to: '/manage/recipes', icon: '📖', label: 'Recipes' });
-  if (user.role === 'super_admin') items.push({ to: '/manage/users', icon: '👥', label: 'Users' }, { to: '/manage/org', icon: '🏪', label: 'Outlets' });
+  if (user.role === 'super_admin') items.push({ to: '/manage/users', icon: '👥', label: 'Users' }, { to: '/manage/org', icon: '🏪', label: 'Outlets' }, { to: '/manage/email', icon: '✉️', label: 'Email' });
   if (user.isAdmin) items.push({ to: '/manage/audit', icon: '🧾', label: 'Audit' });
   return items;
 }
@@ -79,6 +80,7 @@ export default function App() {
         <Route path="/manage/recipes" element={<RequireRole roles={['super_admin', 'training_admin']}><RecipeAdminList /></RequireRole>} />
         <Route path="/manage/recipes/:id" element={<RequireRole roles={['super_admin', 'training_admin']}><RecipeEditor /></RequireRole>} />
         <Route path="/manage/users" element={<RequireRole roles={['super_admin']}><Users /></RequireRole>} />
+        <Route path="/manage/email" element={<RequireRole roles={['super_admin']}><Email /></RequireRole>} />
         <Route path="/manage/org" element={<RequireRole roles={['super_admin']}><Org /></RequireRole>} />
         <Route path="/manage/audit" element={<RequireRole roles={['super_admin', 'training_admin']}><Audit /></RequireRole>} />
         <Route path="*" element={<Navigate to="/" replace />} />

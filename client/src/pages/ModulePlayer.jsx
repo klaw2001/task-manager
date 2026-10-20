@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api.js';
+import Attachments from '../Attachments.jsx';
 import SecureVideo from '../SecureVideo.jsx';
 import ShiftGate from '../ShiftGate.jsx';
 import { Badge, Card, Loading, Page, StatusBadge, fmtDate, useLoad, useToast } from '../ui.jsx';
@@ -125,7 +126,7 @@ function Player() {
         <div className="stack">
           {m.has_video && (
             <>
-              <SecureVideo src={`/api/media/modules/${id}/video`} track={!m.lesson_completed_at ? { moduleId: id, startAt: m.last_position, onUpdate: setM } : undefined} />
+              <SecureVideo source={{ type: 'module', id }} track={!m.lesson_completed_at ? { moduleId: id, startAt: m.last_position, onUpdate: setM } : undefined} />
               {stage === 'lesson' && (
                 m.lesson_completed_at ? (
                   <div className="row between">
@@ -142,6 +143,7 @@ function Player() {
             </>
           )}
           {m.instructions && <Card><h2>Instructions</h2><p style={{ whiteSpace: 'pre-wrap' }}>{m.instructions}</p></Card>}
+          <Attachments items={m.attachments} />
           {stage === 'lesson' && !m.has_video && <div className="row end"><button className="btn primary" onClick={() => act('lesson')}>I have read this</button></div>}
         </div>
       )}

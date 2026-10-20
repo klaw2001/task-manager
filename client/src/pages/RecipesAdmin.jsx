@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, uploadFile } from '../api.js';
+import AttachmentsEditor from '../AttachmentsEditor.jsx';
 import SecureVideo from '../SecureVideo.jsx';
+import VideoUpload from '../VideoUpload.jsx';
 import { Badge, Card, Field, LEARNER_ROLES, Loading, Page, ROLE_LABEL, StatusBadge, fmtDate, useLoad, useToast } from '../ui.jsx';
 
 export function RecipeAdminList() {
@@ -30,11 +32,11 @@ export function RecipeAdminList() {
 }
 
 const NEW = {
-  name: '', brandId: '', category: 'General', roles: ['team_member', 'outlet_incharge', 'franchisee'], status: 'draft', videoKey: null, imageKey: null, portionSize: '', yield: '',
+  name: '', brandId: '', category: 'General', roles: ['team_member', 'outlet_incharge', 'franchisee'], status: 'draft', videoId: null, imageKey: null, portionSize: '', yield: '',
   equipment: '', ingredients: [{ name: '', quantity: '', unit: '' }], stepsText: '', cookingInstructions: '', storage: '', shelfLife: '', foodSafety: '', commonMistakes: '', qualityCheckpoints: '',
 };
 const fromRecipe = (r) => ({
-  ...NEW, name: r.name, brandId: r.brand_id ?? '', category: r.category, roles: r.roles, status: r.status, videoKey: r.video_key, imageKey: r.image_key,
+  ...NEW, name: r.name, brandId: r.brand_id ?? '', category: r.category, roles: r.roles, status: r.status, videoId: r.video_id, imageKey: r.image_key,
   portionSize: r.portion_size, yield: r.yield, equipment: r.equipment, ingredients: r.ingredients.length ? r.ingredients : NEW.ingredients, stepsText: r.steps.join('\n'),
   cookingInstructions: r.cooking_instructions, storage: r.storage, shelfLife: r.shelf_life, foodSafety: r.food_safety, commonMistakes: r.common_mistakes, qualityCheckpoints: r.quality_checkpoints,
 });
@@ -48,7 +50,7 @@ export function RecipeEditor() {
   const state = useLoad(() => (isNew ? Promise.resolve(null) : api.get(`/api/admin/recipes/${id}`)), [id]);
   const [f, setF] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [uploading, setUploading] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   if (!isNew && !state.data) return <Loading state={state} />;
   if (!brands.data) return <Loading state={brands} />;
@@ -58,17 +60,17 @@ export function RecipeEditor() {
   const setIng = (i, change) => update({ ingredients: form.ingredients.map((x, n) => (n === i ? { ...x, ...change } : x)) });
   const toggleRole = (r) => update({ roles: form.roles.includes(r) ? form.roles.filter((x) => x !== r) : [...form.roles, r] });
 
-  async function pick(kind, e) {
+  async function pickImage(e) {
     const file = e.target.files[0];
     if (!file) return;
-    setUploading(kind);
+    setUploadingImage(true);
     try {
-      update({ [kind === 'video' ? 'videoKey' : 'imageKey']: await uploadFile(file, kind) });
-      toast(`${kind === 'video' ? 'Video' : 'Image'} uploaded — remember to save`);
+      update({ imageKey: await uploadFile(file, 'image') });
+      toast('Image uploaded — remember to save');
     } catch (err) {
       toast.error(err);
     } finally {
-      setUploading('');
+      setUploadingImage(false);
       e.target.value = '';
     }
   }
@@ -77,7 +79,7 @@ export function RecipeEditor() {
     setBusy(true);
     const body = {
       name: form.name.trim(), brandId: form.brandId === '' ? null : Number(form.brandId), category: form.category.trim() || 'General', roles: form.roles, status: status ?? form.status,
-      videoKey: form.videoKey, imageKey: form.imageKey, portionSize: form.portionSize, yield: form.yield, equipment: form.equipment,
+      videoId: form.videoId, imageKey: form.imageKey, portionSize: form.portionSize, yield: form.yield, equipment: form.equipment,
       ingredients: form.ingredients.filter((i) => i.name.trim()).map((i) => ({ name: i.name.trim(), quantity: String(i.quantity).trim(), unit: i.unit.trim() })),
       steps: form.stepsText.split('\n').map((s) => s.trim()).filter(Boolean), cookingInstructions: form.cookingInstructions, storage: form.storage,
       shelfLife: form.shelfLife, foodSafety: form.foodSafety, commonMistakes: form.commonMistakes, qualityCheckpoints: form.qualityCheckpoints,
@@ -128,17 +130,25 @@ export function RecipeEditor() {
 
         <Card>
           <h2>Media</h2>
-          <div className="form-grid">
-            <Field label="Preparation video"><input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={(e) => pick('video', e)} disabled={Boolean(uploading)} /></Field>
-            <Field label="Plating image"><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => pick('image', e)} disabled={Boolean(uploading)} /></Field>
+          <div className="stack">
+            <VideoUpload
+              label="Preparation video"
+              videoId={form.videoId}
+              onUploaded={(id) => update({ videoId: id })}
+              onRemove={() => update({ videoId: null })}
+            />
+            <Field label="Plating image">
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={pickImage} disabled={uploadingImage} />
+            </Field>
+            {uploadingImage && <p className="notice">Uploading image…</p>}
+            {form.imageKey && <div className="row"><Badge tone="green">Image attached</Badge><button className="btn small" onClick={() => update({ imageKey: null })}>Remove</button></div>}
+            {!isNew && state.data.video_id && state.data.video_id === form.videoId && <SecureVideo source={{ type: 'recipe', id }} />}
           </div>
-          {uploading && <p className="notice">Uploading {uploading}… keep this page open.</p>}
-          <div className="row">
-            {form.videoKey && <><Badge tone="green">Video attached</Badge><button className="btn small" onClick={() => update({ videoKey: null })}>Remove</button></>}
-            {form.imageKey && <><Badge tone="green">Image attached</Badge><button className="btn small" onClick={() => update({ imageKey: null })}>Remove</button></>}
-          </div>
-          {!isNew && state.data.video_key && <div style={{ marginTop: '.75rem' }}><SecureVideo src={`/api/media/recipes/${id}/video`} /></div>}
         </Card>
+
+        {isNew
+          ? <Card><h2>Attachments</h2><p className="muted">Save the recipe first, then you can attach PDFs, images and videos.</p></Card>
+          : <AttachmentsEditor owner={{ recipeId: Number(id) }} items={state.data.attachments} onChanged={state.reload} />}
 
         <Card>
           <h2>Ingredients & quantities</h2>

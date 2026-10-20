@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { ZodError } from 'zod';
 import { config } from './config.js';
+import { bunnyEnabled } from './bunny.js';
 import { db } from './db.js';
 import { endSession } from './auth.js';
 import { HttpError } from './errors.js';
@@ -16,6 +17,9 @@ import { adminRouter as recipesAdminRouter, router as recipesRouter } from './ro
 import { router as learnRouter } from './routes/learn.js';
 import { router as mediaRouter } from './routes/media.js';
 import { router as uploadsRouter } from './routes/uploads.js';
+import { router as videosRouter } from './routes/videos.js';
+import { router as attachmentsRouter } from './routes/attachments.js';
+import { router as emailRouter } from './routes/email.js';
 import { router as reportsRouter, auditRouter } from './routes/reports.js';
 
 const clientDist = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
@@ -24,15 +28,19 @@ export function createApp() {
   const app = express();
   app.set('trust proxy', 1); // behind the AWS load balancer
   app.disable('x-powered-by');
+  const origin = (url) => new URL(url).origin;
+  const bunnyOrigins = bunnyEnabled() ? [origin(config.bunny.cdnUrl), origin(config.bunny.tusEndpoint)] : [];
   app.use(
     helmet({
       contentSecurityPolicy: {
         directives: {
           ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-          // blob: lets the admin page read a chosen video's length; videos are only ever streamed from this origin
-          'media-src': ["'self'", 'blob:'],
-          // with S3 storage the browser uploads straight to the bucket via a presigned URL
-          'connect-src': ["'self'", ...(config.storage.driver === 's3' ? [`https://${config.storage.bucket}.s3.${config.storage.region}.amazonaws.com`] : [])],
+          // video: HLS segments come from Bunny's CDN and are fed to the player as blob: (hls.js) or played natively (iOS)
+          'media-src': ["'self'", 'blob:', ...(bunnyEnabled() ? [origin(config.bunny.cdnUrl)] : [])],
+          // browser -> Bunny (resumable uploads, HLS requests); with S3 storage also browser -> bucket (presigned uploads)
+          'connect-src': ["'self'", ...(config.storage.driver === 's3' ? [`https://${config.storage.bucket}.s3.${config.storage.region}.amazonaws.com`] : []), ...bunnyOrigins],
+          // hls.js and pdf.js run in web workers
+          'worker-src': ["'self'", 'blob:'],
         },
       },
     }),
@@ -55,7 +63,10 @@ export function createApp() {
   app.use('/api/admin/modules', modulesRouter);
   app.use('/api/admin/recipes', recipesAdminRouter);
   app.use('/api/admin/uploads', uploadsRouter);
+  app.use('/api/admin/videos', videosRouter);
+  app.use('/api/admin/attachments', attachmentsRouter);
   app.use('/api/admin/audit', auditRouter);
+  app.use('/api/admin/email', emailRouter);
   app.use('/api/learn', learnRouter);
   app.use('/api/recipes', recipesRouter);
   app.use('/api/media', mediaRouter);

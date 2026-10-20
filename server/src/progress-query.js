@@ -44,7 +44,7 @@ export async function progressRows(f = {}) {
             u.brand_id, b.name AS brand_name, u.outlet_id, o.name AS outlet_name,
             m.id AS module_id, m.title, m.description, m.category, m.language, m.mandatory, m.sequence, m.version,
             m.requires_ack, m.ack_text, m.pass_mark, m.max_attempts, m.min_watch_percent, m.duration_seconds,
-            m.instructions, m.randomize, (m.video_key IS NOT NULL) AS has_video,
+            m.instructions, m.randomize, (m.video_id IS NOT NULL) AS has_video,
             m.prerequisite_id, pm.title AS prerequisite_title,
             (m.prerequisite_id IS NULL OR EXISTS (
                SELECT 1 FROM progress pp

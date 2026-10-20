@@ -1,45 +1,41 @@
 import { Router } from 'express';
 import { pipeline } from 'node:stream';
-import { config } from '../config.js';
-import { db } from '../db.js';
+import { z } from 'zod';
 import { audit } from '../audit.js';
 import { learnerAccess } from '../auth.js';
-import { ADMIN_ROLES } from '../shift.js';
+import { attachmentVisibleTo, moduleVisibleTo, recipeVisibleTo } from '../access.js';
+import { requireBunny, signPlaybackUrl } from '../bunny.js';
 import { storage } from '../storage.js';
 import { notFound } from '../errors.js';
-import { recipeVisibility } from './recipes.js';
 
 export const router = Router();
-router.use(...learnerAccess); // sign-in, password set, inside shift - re-checked on every request
+router.use(...learnerAccess); // signed in, password set, inside shift - re-checked on every request
 
-async function mediaKey(user, type, id, field) {
-  const isAdmin = ADMIN_ROLES.includes(user.role);
-  if (type === 'modules' && field === 'video') {
-    if (isAdmin) return (await db.one('SELECT video_key AS key FROM modules WHERE id = $1', [id]))?.key;
-    return (
-      await db.one(
-        `SELECT m.video_key AS key
-         FROM assignments a
-         JOIN modules m ON m.id = a.module_id
-         LEFT JOIN modules pm ON pm.id = m.prerequisite_id
-         WHERE a.user_id = $1 AND m.id = $2 AND m.status = 'published'
-           AND (m.brand_id IS NULL OR m.brand_id = $3) AND $4 = ANY(m.roles)
-           AND (m.prerequisite_id IS NULL OR EXISTS (
-                 SELECT 1 FROM progress pp WHERE pp.user_id = $1 AND pp.module_id = pm.id AND pp.version = pm.version AND pp.completed_at IS NOT NULL))`,
-        [user.id, id, user.brand_id, user.role],
-      )
-    )?.key;
-  }
-  if (type === 'recipes' && (field === 'video' || field === 'image')) {
-    const params = [id];
-    const p = (v) => (params.push(v), `$${params.length}`);
-    const column = field === 'video' ? 'video_key' : 'image_key';
-    return (await db.one(`SELECT r.${column} AS key FROM recipes r WHERE r.id = $1 AND ${recipeVisibility(user, p)}`, params))?.key;
-  }
-  return null;
+const playbackBody = z.object({ type: z.enum(['module', 'recipe', 'attachment']), id: z.number().int(), renew: z.boolean().optional() });
+
+async function videoIdFor(user, type, id) {
+  if (type === 'module') return (await moduleVisibleTo(user, id))?.video_id;
+  if (type === 'recipe') return (await recipeVisibleTo(user, id))?.video_id;
+  const a = await attachmentVisibleTo(user, id);
+  return a?.kind === 'video' ? a.video_id : null;
 }
 
-/** Single byte range: "bytes=a-b", "bytes=a-", "bytes=-n". Returns null if absent, 'invalid' if unsatisfiable. */
+/**
+ * Video plays from Bunny's CDN, not through this server. This endpoint is the gate: it runs every access check
+ * (signed in, active, in shift, assigned, brand/role) and only then returns a short-lived signed HLS URL.
+ * The player asks again before the URL expires, so removing a user or ending a shift stops playback within
+ * one token lifetime (BUNNY_TOKEN_TTL_SECONDS).
+ */
+router.post('/playback', async (req, res) => {
+  const { type, id, renew } = playbackBody.parse(req.body);
+  requireBunny();
+  const videoId = await videoIdFor(req.user, type, id);
+  if (!videoId) throw notFound();
+  if (!renew) audit(req, 'media.play', type, id);
+  res.json(signPlaybackUrl(videoId));
+});
+
+/** Single byte range: "bytes=a-b", "bytes=a-", "bytes=-n". null if absent, 'invalid' if unsatisfiable. */
 function parseRange(header, size) {
   if (!header) return null;
   const m = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
@@ -56,38 +52,34 @@ function parseRange(header, size) {
   return start >= size || start > end ? 'invalid' : { start, end };
 }
 
-router.get('/:type/:id/:field', async (req, res) => {
-  const { type, field } = req.params;
-  const key = await mediaKey(req.user, type, Number(req.params.id), field);
-  if (!key) throw notFound();
+/** Streams a stored image / PDF. Never cached, never offered as a download. */
+async function sendObject(req, res, key, contentType) {
   const head = await storage.head(key);
   if (!head) throw notFound();
-
-  const isVideo = field === 'video';
-  let range = parseRange(req.headers.range, head.size);
-  if (range === 'invalid') {
-    return res.status(416).set('Content-Range', `bytes */${head.size}`).end();
-  }
-  // Videos are always served in short ranges, so removing access (or the shift ending) stops playback within seconds.
-  if (isVideo) {
-    range = range ?? { start: 0, end: head.size - 1 };
-    range.end = Math.min(range.end, range.start + config.mediaChunkBytes - 1);
-  }
-
-  res.set({
-    'Content-Type': head.contentType,
+  const range = parseRange(req.headers.range, head.size);
+  if (range === 'invalid') return res.status(416).set('Content-Range', `bytes */${head.size}`).end();
+  const start = range?.start ?? 0;
+  const end = range?.end ?? head.size - 1;
+  res.status(range ? 206 : 200).set({
+    'Content-Type': contentType || head.contentType,
     'Accept-Ranges': 'bytes',
     'Cache-Control': 'private, no-store',
     'Content-Disposition': 'inline',
     'X-Content-Type-Options': 'nosniff',
+    'Content-Length': String(end - start + 1),
+    ...(range ? { 'Content-Range': `bytes ${start}-${end}/${head.size}` } : {}),
   });
-  const start = range?.start ?? 0;
-  const end = range?.end ?? head.size - 1;
-  res.status(range ? 206 : 200);
-  if (range) res.set('Content-Range', `bytes ${start}-${end}/${head.size}`);
-  res.set('Content-Length', String(end - start + 1));
+  pipeline(await storage.read(key, start, end), res, () => {}); // client disconnects are normal
+}
 
-  if (isVideo && start === 0) audit(req, 'media.play', type, req.params.id);
-  const stream = await storage.read(key, start, end);
-  pipeline(stream, res, () => {}); // client disconnects are normal while seeking
+router.get('/attachments/:id/file', async (req, res) => {
+  const a = await attachmentVisibleTo(req.user, Number(req.params.id));
+  if (!a || a.kind === 'video') throw notFound();
+  await sendObject(req, res, a.file_key, a.content_type);
+});
+
+router.get('/recipes/:id/image', async (req, res) => {
+  const recipe = await recipeVisibleTo(req.user, Number(req.params.id));
+  if (!recipe?.image_key) throw notFound();
+  await sendObject(req, res, recipe.image_key);
 });
