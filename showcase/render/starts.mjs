@@ -1,0 +1,11 @@
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+const require = createRequire(import.meta.url);
+const { chromium } = require("playwright");
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const b = await chromium.launch({ args: ["--allow-file-access-from-files"] });
+const p = await b.newPage();
+await p.goto("file://" + join(root, "composition", "index.html"));
+console.log(JSON.stringify(await p.evaluate(() => SCENES.map((s) => [s.id, +s.start.toFixed(2), s.dur])), null, 0));
+await b.close();

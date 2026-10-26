@@ -1,0 +1,961 @@
+{
+ "total": 161,
+ "events": [
+  {
+   "t": 0,
+   "type": "scene"
+  },
+  {
+   "t": 2.55,
+   "type": "swoosh"
+  },
+  {
+   "t": 5,
+   "type": "boom"
+  },
+  {
+   "t": 5.5,
+   "type": "shimmer"
+  },
+  {
+   "t": 8.5,
+   "type": "scene"
+  },
+  {
+   "t": 11.2,
+   "type": "tick"
+  },
+  {
+   "t": 11.4,
+   "type": "tick"
+  },
+  {
+   "t": 11.5,
+   "type": "click"
+  },
+  {
+   "t": 11.5,
+   "type": "key"
+  },
+  {
+   "t": 11.72,
+   "type": "key"
+  },
+  {
+   "t": 11.94,
+   "type": "key"
+  },
+  {
+   "t": 12.16,
+   "type": "key"
+  },
+  {
+   "t": 12.379999999999999,
+   "type": "key"
+  },
+  {
+   "t": 12.7,
+   "type": "tick"
+  },
+  {
+   "t": 13.9,
+   "type": "tick"
+  },
+  {
+   "t": 14.6,
+   "type": "tick"
+  },
+  {
+   "t": 14.7,
+   "type": "click"
+  },
+  {
+   "t": 14.8,
+   "type": "tick"
+  },
+  {
+   "t": 15.75,
+   "type": "click"
+  },
+  {
+   "t": 15.75,
+   "type": "chime"
+  },
+  {
+   "t": 16.9,
+   "type": "tick"
+  },
+  {
+   "t": 17,
+   "type": "scene"
+  },
+  {
+   "t": 20,
+   "type": "tick"
+  },
+  {
+   "t": 20.1,
+   "type": "tick"
+  },
+  {
+   "t": 22,
+   "type": "tick"
+  },
+  {
+   "t": 22.5,
+   "type": "tick"
+  },
+  {
+   "t": 23.6,
+   "type": "tick"
+  },
+  {
+   "t": 23.7,
+   "type": "tick"
+  },
+  {
+   "t": 25.4,
+   "type": "tick"
+  },
+  {
+   "t": 26.7,
+   "type": "tick"
+  },
+  {
+   "t": 27.4,
+   "type": "tick"
+  },
+  {
+   "t": 28.7,
+   "type": "tick"
+  },
+  {
+   "t": 29.7,
+   "type": "tick"
+  },
+  {
+   "t": 30.5,
+   "type": "scene"
+  },
+  {
+   "t": 31.5,
+   "type": "click"
+  },
+  {
+   "t": 32.2,
+   "type": "tick"
+  },
+  {
+   "t": 32.2,
+   "type": "tick"
+  },
+  {
+   "t": 33.1,
+   "type": "tick"
+  },
+  {
+   "t": 33.7,
+   "type": "tick"
+  },
+  {
+   "t": 34.3,
+   "type": "tick"
+  },
+  {
+   "t": 34.9,
+   "type": "tick"
+  },
+  {
+   "t": 35.8,
+   "type": "tick"
+  },
+  {
+   "t": 36.3,
+   "type": "tick"
+  },
+  {
+   "t": 36.3,
+   "type": "tick"
+  },
+  {
+   "t": 37.6,
+   "type": "tick"
+  },
+  {
+   "t": 38.7,
+   "type": "tick"
+  },
+  {
+   "t": 40,
+   "type": "scene"
+  },
+  {
+   "t": 41.1,
+   "type": "click"
+  },
+  {
+   "t": 41.15,
+   "type": "click"
+  },
+  {
+   "t": 41.8,
+   "type": "tick"
+  },
+  {
+   "t": 42,
+   "type": "tick"
+  },
+  {
+   "t": 42.55,
+   "type": "click"
+  },
+  {
+   "t": 42.65,
+   "type": "grab"
+  },
+  {
+   "t": 43.4,
+   "type": "tick"
+  },
+  {
+   "t": 44.4,
+   "type": "drop"
+  },
+  {
+   "t": 44.5,
+   "type": "click"
+  },
+  {
+   "t": 44.8,
+   "type": "tick"
+  },
+  {
+   "t": 45.2,
+   "type": "tick"
+  },
+  {
+   "t": 49,
+   "type": "scene"
+  },
+  {
+   "t": 50.85,
+   "type": "click"
+  },
+  {
+   "t": 50.85,
+   "type": "click"
+  },
+  {
+   "t": 51.3,
+   "type": "whoosh"
+  },
+  {
+   "t": 51.9,
+   "type": "tick"
+  },
+  {
+   "t": 52.3,
+   "type": "tick"
+  },
+  {
+   "t": 52.6,
+   "type": "tick"
+  },
+  {
+   "t": 53.85,
+   "type": "click"
+  },
+  {
+   "t": 53.85,
+   "type": "click"
+  },
+  {
+   "t": 54.1,
+   "type": "tick"
+  },
+  {
+   "t": 54.1,
+   "type": "tick"
+  },
+  {
+   "t": 54.85,
+   "type": "click"
+  },
+  {
+   "t": 54.85,
+   "type": "click"
+  },
+  {
+   "t": 55.1,
+   "type": "tick"
+  },
+  {
+   "t": 55.85,
+   "type": "click"
+  },
+  {
+   "t": 55.85,
+   "type": "click"
+  },
+  {
+   "t": 56,
+   "type": "tick"
+  },
+  {
+   "t": 56.3,
+   "type": "key"
+  },
+  {
+   "t": 56.6,
+   "type": "key"
+  },
+  {
+   "t": 56.9,
+   "type": "key"
+  },
+  {
+   "t": 57.2,
+   "type": "key"
+  },
+  {
+   "t": 57.95,
+   "type": "click"
+  },
+  {
+   "t": 57.95,
+   "type": "click"
+  },
+  {
+   "t": 57.95,
+   "type": "chime"
+  },
+  {
+   "t": 58.2,
+   "type": "tick"
+  },
+  {
+   "t": 59.2,
+   "type": "tick"
+  },
+  {
+   "t": 59.9,
+   "type": "tick"
+  },
+  {
+   "t": 61.5,
+   "type": "scene"
+  },
+  {
+   "t": 62.5,
+   "type": "key"
+  },
+  {
+   "t": 63.4,
+   "type": "key"
+  },
+  {
+   "t": 63.4,
+   "type": "tick"
+  },
+  {
+   "t": 63.68,
+   "type": "key"
+  },
+  {
+   "t": 63.96,
+   "type": "key"
+  },
+  {
+   "t": 64.24,
+   "type": "key"
+  },
+  {
+   "t": 64.9,
+   "type": "tick"
+  },
+  {
+   "t": 65,
+   "type": "tick"
+  },
+  {
+   "t": 65.6,
+   "type": "tick"
+  },
+  {
+   "t": 65.95,
+   "type": "click"
+  },
+  {
+   "t": 65.95,
+   "type": "click"
+  },
+  {
+   "t": 66.7,
+   "type": "tick"
+  },
+  {
+   "t": 67.35,
+   "type": "click"
+  },
+  {
+   "t": 67.35,
+   "type": "click"
+  },
+  {
+   "t": 67.5,
+   "type": "chime"
+  },
+  {
+   "t": 67.9,
+   "type": "tick"
+  },
+  {
+   "t": 70,
+   "type": "scene"
+  },
+  {
+   "t": 71.35,
+   "type": "click"
+  },
+  {
+   "t": 71.35,
+   "type": "click"
+  },
+  {
+   "t": 71.5,
+   "type": "tick"
+  },
+  {
+   "t": 71.8,
+   "type": "tick"
+  },
+  {
+   "t": 72,
+   "type": "tick"
+  },
+  {
+   "t": 73.15,
+   "type": "click"
+  },
+  {
+   "t": 73.15,
+   "type": "click"
+  },
+  {
+   "t": 73.3,
+   "type": "tick"
+  },
+  {
+   "t": 73.6,
+   "type": "tick"
+  },
+  {
+   "t": 74.85,
+   "type": "click"
+  },
+  {
+   "t": 74.85,
+   "type": "click"
+  },
+  {
+   "t": 75,
+   "type": "key"
+  },
+  {
+   "t": 75.2,
+   "type": "tick"
+  },
+  {
+   "t": 75.3,
+   "type": "tick"
+  },
+  {
+   "t": 75.5,
+   "type": "key"
+  },
+  {
+   "t": 76,
+   "type": "key"
+  },
+  {
+   "t": 77.5,
+   "type": "scene"
+  },
+  {
+   "t": 78.8,
+   "type": "tick"
+  },
+  {
+   "t": 79.4,
+   "type": "click"
+  },
+  {
+   "t": 79.4,
+   "type": "click"
+  },
+  {
+   "t": 79.5,
+   "type": "pop"
+  },
+  {
+   "t": 80,
+   "type": "tick"
+  },
+  {
+   "t": 80.4,
+   "type": "tick"
+  },
+  {
+   "t": 81.2,
+   "type": "tick"
+  },
+  {
+   "t": 82.5,
+   "type": "whoosh"
+  },
+  {
+   "t": 82.9,
+   "type": "tick"
+  },
+  {
+   "t": 83.25,
+   "type": "chime"
+  },
+  {
+   "t": 85.3,
+   "type": "whoosh"
+  },
+  {
+   "t": 85.5,
+   "type": "tick"
+  },
+  {
+   "t": 85.8,
+   "type": "chime"
+  },
+  {
+   "t": 87,
+   "type": "scene"
+  },
+  {
+   "t": 89.5,
+   "type": "tick"
+  },
+  {
+   "t": 89.7,
+   "type": "tick"
+  },
+  {
+   "t": 91,
+   "type": "tick"
+  },
+  {
+   "t": 91,
+   "type": "tick"
+  },
+  {
+   "t": 92.4,
+   "type": "tick"
+  },
+  {
+   "t": 92.5,
+   "type": "tick"
+  },
+  {
+   "t": 93.9,
+   "type": "click"
+  },
+  {
+   "t": 94,
+   "type": "tick"
+  },
+  {
+   "t": 94.05,
+   "type": "click"
+  },
+  {
+   "t": 94.1,
+   "type": "tick"
+  },
+  {
+   "t": 94.2,
+   "type": "chime"
+  },
+  {
+   "t": 94.3,
+   "type": "tick"
+  },
+  {
+   "t": 94.6,
+   "type": "click"
+  },
+  {
+   "t": 94.75,
+   "type": "click"
+  },
+  {
+   "t": 95.3,
+   "type": "click"
+  },
+  {
+   "t": 95.45,
+   "type": "click"
+  },
+  {
+   "t": 96,
+   "type": "click"
+  },
+  {
+   "t": 96.15,
+   "type": "click"
+  },
+  {
+   "t": 97,
+   "type": "tick"
+  },
+  {
+   "t": 98.5,
+   "type": "scene"
+  },
+  {
+   "t": 101.1,
+   "type": "tick"
+  },
+  {
+   "t": 101.1,
+   "type": "tick"
+  },
+  {
+   "t": 101.5,
+   "type": "click"
+  },
+  {
+   "t": 101.5,
+   "type": "click"
+  },
+  {
+   "t": 101.9,
+   "type": "key"
+  },
+  {
+   "t": 102.4,
+   "type": "key"
+  },
+  {
+   "t": 102.65,
+   "type": "key"
+  },
+  {
+   "t": 102.7,
+   "type": "tick"
+  },
+  {
+   "t": 102.9,
+   "type": "key"
+  },
+  {
+   "t": 103.5,
+   "type": "tick"
+  },
+  {
+   "t": 103.7,
+   "type": "click"
+  },
+  {
+   "t": 103.7,
+   "type": "click"
+  },
+  {
+   "t": 104.45,
+   "type": "chime"
+  },
+  {
+   "t": 104.5,
+   "type": "tick"
+  },
+  {
+   "t": 105.7,
+   "type": "tick"
+  },
+  {
+   "t": 105.8,
+   "type": "whoosh"
+  },
+  {
+   "t": 106.1,
+   "type": "tick"
+  },
+  {
+   "t": 107.4,
+   "type": "tick"
+  },
+  {
+   "t": 107.5,
+   "type": "pop"
+  },
+  {
+   "t": 107.7,
+   "type": "tick"
+  },
+  {
+   "t": 109.3,
+   "type": "error"
+  },
+  {
+   "t": 109.3,
+   "type": "tick"
+  },
+  {
+   "t": 109.5,
+   "type": "tick"
+  },
+  {
+   "t": 111,
+   "type": "scene"
+  },
+  {
+   "t": 112.2,
+   "type": "tick"
+  },
+  {
+   "t": 112.8,
+   "type": "tick"
+  },
+  {
+   "t": 114.45,
+   "type": "whoosh"
+  },
+  {
+   "t": 114.8,
+   "type": "tick"
+  },
+  {
+   "t": 115.4,
+   "type": "tick"
+  },
+  {
+   "t": 117.5,
+   "type": "scene"
+  },
+  {
+   "t": 120.1,
+   "type": "tick"
+  },
+  {
+   "t": 120.6,
+   "type": "tick"
+  },
+  {
+   "t": 121.1,
+   "type": "tick"
+  },
+  {
+   "t": 121.6,
+   "type": "tick"
+  },
+  {
+   "t": 122.1,
+   "type": "tick"
+  },
+  {
+   "t": 122.6,
+   "type": "tick"
+  },
+  {
+   "t": 123.1,
+   "type": "tick"
+  },
+  {
+   "t": 126.1,
+   "type": "tick"
+  },
+  {
+   "t": 126.9,
+   "type": "tick"
+  },
+  {
+   "t": 127.8,
+   "type": "tick"
+  },
+  {
+   "t": 127.9,
+   "type": "tick"
+  },
+  {
+   "t": 128.4,
+   "type": "click"
+  },
+  {
+   "t": 128.4,
+   "type": "click"
+  },
+  {
+   "t": 128.5,
+   "type": "chime"
+  },
+  {
+   "t": 129.1,
+   "type": "tick"
+  },
+  {
+   "t": 130,
+   "type": "tick"
+  },
+  {
+   "t": 130.4,
+   "type": "tick"
+  },
+  {
+   "t": 131,
+   "type": "scene"
+  },
+  {
+   "t": 132.3,
+   "type": "tick"
+  },
+  {
+   "t": 132.8,
+   "type": "tick"
+  },
+  {
+   "t": 132.85,
+   "type": "click"
+  },
+  {
+   "t": 132.85,
+   "type": "click"
+  },
+  {
+   "t": 134.3,
+   "type": "tick"
+  },
+  {
+   "t": 135.9,
+   "type": "whoosh"
+  },
+  {
+   "t": 135.9,
+   "type": "pop"
+  },
+  {
+   "t": 136.04,
+   "type": "pop"
+  },
+  {
+   "t": 136.18,
+   "type": "pop"
+  },
+  {
+   "t": 136.6,
+   "type": "tick"
+  },
+  {
+   "t": 139.5,
+   "type": "scene"
+  },
+  {
+   "t": 141.9,
+   "type": "whoosh"
+  },
+  {
+   "t": 142,
+   "type": "tick"
+  },
+  {
+   "t": 142.5,
+   "type": "tick"
+  },
+  {
+   "t": 143,
+   "type": "tick"
+  },
+  {
+   "t": 143.5,
+   "type": "tick"
+  },
+  {
+   "t": 144,
+   "type": "tick"
+  },
+  {
+   "t": 144.3,
+   "type": "pop"
+  },
+  {
+   "t": 144.5,
+   "type": "tick"
+  },
+  {
+   "t": 147,
+   "type": "scene"
+  },
+  {
+   "t": 149.2,
+   "type": "whoosh"
+  },
+  {
+   "t": 149.3,
+   "type": "tick"
+  },
+  {
+   "t": 149.42,
+   "type": "tick"
+  },
+  {
+   "t": 149.54,
+   "type": "tick"
+  },
+  {
+   "t": 149.66,
+   "type": "tick"
+  },
+  {
+   "t": 149.78,
+   "type": "tick"
+  },
+  {
+   "t": 149.9,
+   "type": "tick"
+  },
+  {
+   "t": 150.6,
+   "type": "tick"
+  },
+  {
+   "t": 151.05,
+   "type": "tick"
+  },
+  {
+   "t": 151.5,
+   "type": "tick"
+  },
+  {
+   "t": 151.95,
+   "type": "tick"
+  },
+  {
+   "t": 152.6,
+   "type": "tick"
+  },
+  {
+   "t": 153,
+   "type": "tick"
+  },
+  {
+   "t": 153.4,
+   "type": "tick"
+  },
+  {
+   "t": 154.5,
+   "type": "scene"
+  },
+  {
+   "t": 155.4,
+   "type": "shimmer"
+  },
+  {
+   "t": 159.5,
+   "type": "tail"
+  }
+ ]
+}
