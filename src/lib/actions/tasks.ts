@@ -7,6 +7,7 @@ import type { Database } from "../db/client";
 import { requireUser } from "../auth/session";
 import { getCompany } from "../data/company";
 import { notify } from "../data/notifications";
+import { queueAssignmentEmail } from "../email/assignment";
 import { AppError, ForbiddenError } from "../errors";
 import { can, canChangeStatus, canDeleteTask, canEditTask, canViewTask } from "../permissions";
 import { commentSchema, taskCreateSchema, taskPatchSchema } from "../validation";
@@ -73,6 +74,7 @@ export async function createTask(input: unknown): Promise<ActionResult<{ id: str
       }
       return t.id;
     });
+    if (assigneeId) queueAssignmentEmail({ taskId: id, assigneeId, actor: user });
     refresh();
     return { id };
   }, "Task created");
@@ -84,6 +86,7 @@ export async function updateTask(id: string, patch: unknown): Promise<ActionResu
     const company = await loadCompany();
     const input = taskPatchSchema.parse(patch);
     const db = await getDb();
+    let newAssigneeId = null as string | null; // set inside the transaction callback
 
     await db.transaction(async (tx) => {
       const [t] = await tx.select().from(tasks).where(eq(tasks.id, id)).limit(1);
@@ -148,6 +151,7 @@ export async function updateTask(id: string, patch: unknown): Promise<ActionResu
         set.assigneeId = next;
         log.push({ type: "assignee", meta: { from: prevName, to: nextName } });
         if (next) {
+          newAssigneeId = next;
           alerts.push({
             userId: next,
             type: "assigned",
@@ -187,6 +191,7 @@ export async function updateTask(id: string, patch: unknown): Promise<ActionResu
       await notify(tx, user.id, alerts);
     });
 
+    if (newAssigneeId) queueAssignmentEmail({ taskId: id, assigneeId: newAssigneeId, actor: user });
     refresh();
   });
 }

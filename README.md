@@ -59,6 +59,8 @@ Every rule is enforced **on the server** (`src/lib/permissions.ts` + each action
    | `AUTH_SECRET` | ✅ | Signs session cookies. Generate with `openssl rand -base64 48` |
    | `SETUP_KEY` | recommended | If set, `/setup` asks for it – stops a stranger claiming a freshly deployed instance before you do |
    | `CRON_SECRET` | for digests | Vercel sends it as a bearer token to `/api/cron/overdue`; without it the endpoint returns 401 |
+   | `BREVO_SMTP_LOGIN`, `BREVO_SMTP_KEY`, `EMAIL_FROM` | for email | Turn on [assignment emails](#email-notifications). All three are required; leave them unset and no email is sent |
+   | `APP_URL` | recommended with email | Public URL used for the "Open task" link in emails (falls back to the host of the request) |
 
 4. **Deploy.** The build runs `node scripts/migrate.mjs` first, so the schema is created/updated automatically on every deploy (and the build fails loudly if `DATABASE_URL` is missing).
 5. Open your URL → **/setup** → create the company and your admin account. Add teammates from **People & roles**.
@@ -70,6 +72,18 @@ Every rule is enforced **on the server** (`src/lib/permissions.ts` + each action
 > **Previews:** preview deployments use the same env vars by default. Scope `DATABASE_URL` to *Production* and give previews their own database (e.g. a Neon branch) so test data and migrations never touch production.
 >
 > **Cron:** `vercel.json` schedules `/api/cron/overdue` daily at 06:00 UTC (fits the Hobby plan limit of one run per day).
+
+## Email notifications
+
+When someone assigns (or reassigns) a task, the new assignee gets an email with the task title, a short description, priority, deadline and an **Open task** link. It goes out through [Brevo](https://www.brevo.com)'s SMTP relay *after* the request has finished, so a slow or failing mail server never blocks or fails the action. As with in-app notifications, you aren't emailed about tasks you assign to yourself.
+
+Set it up:
+
+1. In Brevo, **verify your sender** (a single address, or better an authenticated domain with SPF/DKIM) so mail isn't flagged as spam.
+2. Brevo → **SMTP & API → SMTP**: copy the **Login** and generate an **SMTP key** (this is *not* the API key).
+3. Set `BREVO_SMTP_LOGIN`, `BREVO_SMTP_KEY` and `EMAIL_FROM` (e.g. `Acme <tasks@acme.com>`), plus `APP_URL`, then redeploy.
+
+Delivery problems are logged as `[email] couldn't send assignment email` (Vercel → project → Logs). If your network blocks port 587, set `BREVO_SMTP_PORT=2525`.
 
 ## Run locally
 
@@ -121,7 +135,7 @@ Design decisions worth knowing:
 
 ## Known limits / next steps
 
-- **No email**: new users get a temporary password you hand over (shown once). Adding invitation / reset emails (e.g. Resend) is the natural next step.
+- **Email is assignment-only**: new users still get a temporary password you hand over (shown once); invitation / password-reset / comment / overdue emails aren't sent yet.
 - No file attachments, subtasks, recurring tasks or @mentions yet.
 - Drag-and-drop on the board is mouse/pen only; on touch devices and for keyboard users, change status from the task panel or the status pill.
 - Sessions last 7 days; there is no "remember me" / SSO.
