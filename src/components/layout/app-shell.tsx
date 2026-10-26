@@ -23,6 +23,7 @@ import type { CompanyView, NotificationView, SessionUser } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { ToastProvider } from "@/components/ui/toast";
+import { Tooltip } from "@/components/ui/tooltip";
 import { NewTaskButton, NewTaskProvider } from "@/components/tasks/new-task";
 import { CompanyMark } from "./brand";
 import { NotificationBell } from "./notifications";
@@ -89,13 +90,17 @@ export function AppShell({
             <p className="truncate text-sm font-medium leading-tight">{user.name}</p>
             <p className="truncate text-xs text-muted">{user.jobTitle || ROLE_LABEL[user.role]}</p>
           </div>
-          <Link href="/settings" aria-label="Settings" title="Settings" className="rounded-md p-1.5 text-muted hover:bg-hover hover:text-fg">
-            <Settings className="size-4" />
-          </Link>
+          <Tooltip label="Settings">
+            <Link href="/settings" aria-label="Settings" className="rounded-md p-1.5 text-muted hover:bg-hover hover:text-fg">
+              <Settings className="size-4" />
+            </Link>
+          </Tooltip>
           <form action={logoutAction}>
-            <button aria-label="Sign out" title="Sign out" className="rounded-md p-1.5 text-muted hover:bg-hover hover:text-fg">
-              <LogOut className="size-4" />
-            </button>
+            <Tooltip label="Sign out">
+              <button aria-label="Sign out" className="rounded-md p-1.5 text-muted hover:bg-hover hover:text-fg">
+                <LogOut className="size-4" />
+              </button>
+            </Tooltip>
           </form>
         </div>
       </div>

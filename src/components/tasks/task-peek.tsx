@@ -25,6 +25,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/form";
 import { PillSelect } from "@/components/ui/pill-select";
+import { Tooltip } from "@/components/ui/tooltip";
 import { useAction } from "@/components/ui/use-action";
 
 const STATUS_OPTIONS = TASK_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }));
@@ -84,9 +85,11 @@ export function TaskPeek({
         className="anim-slide-in absolute inset-y-0 right-0 flex w-full flex-col border-l bg-bg shadow-pop sm:w-[min(640px,100vw)]"
       >
         <header className="flex items-center gap-1 border-b px-3 py-2">
-          <Link href={closeHref} scroll={false} aria-label="Close" className="rounded-md p-1.5 text-muted hover:bg-hover hover:text-fg">
-            <X className="size-4" />
-          </Link>
+          <Tooltip label="Close">
+            <Link href={closeHref} scroll={false} aria-label="Close" className="rounded-md p-1.5 text-muted hover:bg-hover hover:text-fg">
+              <X className="size-4" />
+            </Link>
+          </Tooltip>
           <span className="ml-1 text-xs text-faint" aria-live="polite">
             {pending ? "Saving…" : "Esc to close"}
           </span>

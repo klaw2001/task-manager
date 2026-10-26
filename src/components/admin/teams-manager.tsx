@@ -8,6 +8,7 @@ import type { TeamRow } from "@/lib/data/users";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/form";
+import { IconButton } from "@/components/ui/icon-button";
 import { useAction } from "@/components/ui/use-action";
 
 export function TeamsManager({ teams }: { teams: TeamRow[] }) {
@@ -34,20 +35,20 @@ export function TeamsManager({ teams }: { teams: TeamRow[] }) {
             <li key={t.id} className="flex flex-col rounded-xl border bg-bg p-4">
               <div className="flex items-start gap-2">
                 <h2 className="flex-1 font-semibold">{t.name}</h2>
-                <button aria-label={`Edit ${t.name}`} onClick={() => setEditing(t)} className="rounded-md p-1.5 text-muted hover:bg-hover hover:text-fg">
+                <IconButton label={`Edit ${t.name}`} onClick={() => setEditing(t)}>
                   <Pencil className="size-3.5" />
-                </button>
-                <button
-                  aria-label={`Delete ${t.name}`}
+                </IconButton>
+                <IconButton
+                  label={`Delete ${t.name}`}
+                  danger
                   onClick={() => {
                     if (confirm(`Delete the “${t.name}” team? Its ${pluralize(t.members, "member")} will become unassigned to any team.`)) {
                       run(() => deleteTeam(t.id));
                     }
                   }}
-                  className="rounded-md p-1.5 text-muted hover:bg-hover hover:text-danger"
                 >
                   <Trash2 className="size-3.5" />
-                </button>
+                </IconButton>
               </div>
               <p className="mt-1 flex-1 text-sm text-muted">{t.description || "No description"}</p>
               <p className="mt-3 text-xs text-faint">{pluralize(t.members, "member")}</p>

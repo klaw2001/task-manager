@@ -11,6 +11,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Input, Select } from "@/components/ui/form";
+import { IconButton } from "@/components/ui/icon-button";
 import { Pill } from "@/components/ui/pill";
 import { useToast } from "@/components/ui/toast";
 import { useAction } from "@/components/ui/use-action";
@@ -151,7 +152,7 @@ export function PeopleManager({ people, teams, currentUserId }: { people: Person
                 </td>
                 <td className="px-3 py-2.5">
                   <div className="flex justify-end gap-1">
-                    <IconButton label="Edit" onClick={() => setModal({ type: "edit", person: p })}>
+                    <IconButton label="Edit member" onClick={() => setModal({ type: "edit", person: p })}>
                       <Pencil className="size-3.5" />
                     </IconButton>
                     {p.id !== currentUserId && p.active && (
@@ -160,7 +161,7 @@ export function PeopleManager({ people, teams, currentUserId }: { people: Person
                       </IconButton>
                     )}
                     {p.id !== currentUserId && (
-                      <IconButton label={p.active ? "Deactivate" : "Reactivate"} onClick={() => toggleActive(p)} danger={p.active}>
+                      <IconButton label={p.active ? "Deactivate member" : "Reactivate member"} onClick={() => toggleActive(p)} danger={p.active}>
                         {p.active ? <UserX className="size-3.5" /> : <UserCheck className="size-3.5" />}
                       </IconButton>
                     )}
@@ -221,20 +222,6 @@ export function PeopleManager({ people, teams, currentUserId }: { people: Person
         {modal?.type === "credentials" && <Credentials email={modal.email} password={modal.password} onClose={() => setModal(null)} />}
       </Dialog>
     </div>
-  );
-}
-
-function IconButton({ label, onClick, children, danger }: { label: string; onClick: () => void; children: React.ReactNode; danger?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      className={cn("rounded-md p-1.5 text-muted hover:bg-hover", danger ? "hover:text-danger" : "hover:text-fg")}
-    >
-      {children}
-    </button>
   );
 }
 

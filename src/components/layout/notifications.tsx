@@ -7,6 +7,7 @@ import { markNotificationsRead } from "@/lib/actions/notifications";
 import { relativeTime } from "@/lib/dates";
 import type { NotificationView } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { Tooltip } from "@/components/ui/tooltip";
 
 const ICONS: Record<string, typeof Bell> = {
   assigned: UserPlus,
@@ -21,6 +22,7 @@ export function NotificationBell({ items, unread }: { items: NotificationView[];
   const [, startTransition] = useTransition();
   const router = useRouter();
   const ref = useRef<HTMLDivElement>(null);
+  const label = unread > 0 ? `Notifications (${unread} unread)` : "Notifications";
 
   useEffect(() => {
     if (!open) return;
@@ -46,20 +48,22 @@ export function NotificationBell({ items, unread }: { items: NotificationView[];
 
   return (
     <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-label={unread > 0 ? `Notifications (${unread} unread)` : "Notifications"}
-        aria-expanded={open}
-        className="relative inline-flex size-8 items-center justify-center rounded-md text-muted hover:bg-hover hover:text-fg"
-      >
-        <Bell className="size-4" />
-        {unread > 0 && (
-          <span className="absolute right-0.5 top-0.5 flex min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold leading-4 text-white">
-            {unread > 9 ? "9+" : unread}
-          </span>
-        )}
-      </button>
+      <Tooltip label={label}>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-label={label}
+          aria-expanded={open}
+          className="relative inline-flex size-8 items-center justify-center rounded-md text-muted hover:bg-hover hover:text-fg"
+        >
+          <Bell className="size-4" />
+          {unread > 0 && (
+            <span className="absolute right-0.5 top-0.5 flex min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold leading-4 text-white">
+              {unread > 9 ? "9+" : unread}
+            </span>
+          )}
+        </button>
+      </Tooltip>
 
       {open && (
         <div className="anim-pop-in absolute right-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border bg-bg shadow-pop">

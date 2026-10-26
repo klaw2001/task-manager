@@ -3,6 +3,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tooltip } from "./tooltip";
 
 /** Accessible modal built on the native <dialog> element (focus trap + Esc for free). */
 export function Dialog({
@@ -52,9 +53,11 @@ export function Dialog({
               </h2>
               {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}
             </div>
-            <button aria-label="Close" onClick={onClose} className="-mr-1.5 rounded-md p-1.5 text-muted hover:bg-hover hover:text-fg">
-              <X className="size-4" />
-            </button>
+            <Tooltip label="Close" className="-mr-1.5">
+              <button aria-label="Close" onClick={onClose} className="rounded-md p-1.5 text-muted hover:bg-hover hover:text-fg">
+                <X className="size-4" />
+              </button>
+            </Tooltip>
           </div>
           <div className="overflow-y-auto px-5 py-4">{children}</div>
         </div>
